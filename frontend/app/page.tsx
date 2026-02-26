@@ -39,10 +39,17 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
     setSubmitted(true);
+
+    // Fire-and-forget: send URL to backend for LLM analysis (logged server-side only)
+    fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }).catch(() => {/* silent — analysis is background only */});
   }
 
   return (
