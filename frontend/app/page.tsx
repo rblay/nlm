@@ -2,6 +2,39 @@
 
 import { useState } from "react";
 
+const FAKE_SCORES = {
+  overall: 62,
+  breakdown: [
+    { model: "ChatGPT", score: 71, color: "bg-green-500" },
+    { model: "Claude", score: 58, color: "bg-blue-500" },
+    { model: "Gemini", score: 55, color: "bg-yellow-500" },
+    { model: "Perplexity", score: 64, color: "bg-purple-500" },
+  ],
+};
+
+function ScoreBar({ label, score, color }: { label: string; score: number; color: string }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>{label}</span>
+        <span className="font-medium text-gray-700">{score}/100</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${color} transition-all duration-700`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScoreLabel(score: number): { label: string; color: string } {
+  if (score >= 80) return { label: "Excellent", color: "text-green-600" };
+  if (score >= 60) return { label: "Fair", color: "text-yellow-600" };
+  return { label: "Poor", color: "text-red-500" };
+}
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -63,12 +96,57 @@ export default function Home() {
               </button>
             </form>
           ) : (
-            <div className="mt-8 p-6 rounded-lg border border-blue-100 bg-blue-50 text-left space-y-2">
-              <p className="text-sm font-medium text-blue-700">URL received</p>
-              <p className="text-sm text-blue-600 break-all">{url}</p>
-              <p className="text-xs text-gray-400 mt-2">
-                Analysis pipeline coming next…
-              </p>
+            <div className="mt-8 space-y-4 text-left">
+              {/* URL confirmed */}
+              <div className="px-4 py-3 rounded-lg border border-blue-100 bg-blue-50 flex items-center gap-3">
+                <span className="text-blue-500 text-base">🔗</span>
+                <p className="text-sm text-blue-700 break-all flex-1">{url}</p>
+                <button
+                  onClick={() => setSubmitted(false)}
+                  className="text-xs text-blue-400 hover:text-blue-600 whitespace-nowrap"
+                >
+                  Change
+                </button>
+              </div>
+
+              {/* Score card */}
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                      LLM Relevance Score
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">Fake data · analysis pipeline coming soon</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-gray-900">
+                      {FAKE_SCORES.overall}
+                      <span className="text-base font-normal text-gray-400">/100</span>
+                    </p>
+                    <p className={`text-xs font-semibold ${ScoreLabel(FAKE_SCORES.overall).color}`}>
+                      {ScoreLabel(FAKE_SCORES.overall).label}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Overall bar */}
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all duration-700"
+                      style={{ width: `${FAKE_SCORES.overall}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Per-model breakdown */}
+                <div className="px-6 py-4 space-y-3">
+                  {FAKE_SCORES.breakdown.map(({ model, score, color }) => (
+                    <ScoreBar key={model} label={model} score={score} color={color} />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
