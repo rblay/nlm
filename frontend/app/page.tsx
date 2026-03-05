@@ -10,6 +10,86 @@ import type {
   ActionCard,
 } from "@/lib/types";
 
+// ─── Testing mode ─────────────────────────────────────────────────────────────
+
+type TestingMode = "all" | "score-only" | "rec-only" | "fake";
+
+const FAKE_PROFILE: BusinessProfile = {
+  name: "Apex Fitness Studio",
+  type: "Personal Training Studio",
+  location: "Shoreditch, London",
+  description: "A boutique personal training studio in the heart of Shoreditch offering bespoke strength and conditioning programmes for all fitness levels.",
+  services: ["1-to-1 personal training", "Small group HIIT classes", "Nutrition coaching", "Body composition analysis"],
+  signals: {
+    hasSchema: false, hasBlog: false, hasFAQ: false, hasMetaDescription: true,
+    titleTag: "Apex Fitness Studio | Personal Training Shoreditch",
+    socialLinks: ["https://instagram.com/apexfitnesslondon"],
+    hasMapsEmbed: false, hasGoogleBusinessProfile: true, gbpHasHours: true,
+    gbpPhotoCount: 4, reviewCount: 31, reviewRating: 4.7,
+  },
+};
+
+const FAKE_QUERIES = [
+  "best personal training studios in Shoreditch",
+  "beginner-friendly gyms in East London",
+  "strength training classes for women Shoreditch",
+  "HIIT classes near Shoreditch London",
+];
+
+const FAKE_INTENTS = [
+  "find a personal trainer in Shoreditch",
+  "beginner gym options in East London",
+  "strength training for women",
+  "high-intensity interval training classes nearby",
+];
+
+const FAKE_SCORE_RESULT: ScoreResult = {
+  overallScore: 42,
+  perLLM: [
+    { llm: "openai",    score: 50, mentions: 2, totalQueries: 4 },
+    { llm: "anthropic", score: 25, mentions: 1, totalQueries: 4 },
+    { llm: "gemini",    score: 50, mentions: 2, totalQueries: 4 },
+  ],
+  intents: FAKE_INTENTS,
+  queries: FAKE_QUERIES,
+  debug: [
+    { query: FAKE_QUERIES[0], llm: "openai",    response: "Top PT studios in Shoreditch include Apex Fitness Studio, known for bespoke strength programmes.", mentioned: true,  latencyMs: 1240 },
+    { query: FAKE_QUERIES[0], llm: "anthropic", response: "In Shoreditch you'll find Third Space and F45. Smaller boutique studios are less commonly cited.", mentioned: false, latencyMs: 2100 },
+    { query: FAKE_QUERIES[0], llm: "gemini",    response: "Apex Fitness Studio in Shoreditch is well-regarded for personal training.", mentioned: true,  latencyMs: 980  },
+    { query: FAKE_QUERIES[1], llm: "openai",    response: "For beginners in East London, PureGym and Nuffield Health are popular choices.", mentioned: false, latencyMs: 1150 },
+    { query: FAKE_QUERIES[1], llm: "anthropic", response: "East London has many gyms for beginners including several boutique studios.", mentioned: false, latencyMs: 1890 },
+    { query: FAKE_QUERIES[1], llm: "gemini",    response: "Beginners in East London often choose Apex Fitness Studio for structured onboarding.", mentioned: true,  latencyMs: 1020 },
+    { query: FAKE_QUERIES[2], llm: "openai",    response: "Apex Fitness Studio offers women-focused strength programmes in Shoreditch.", mentioned: true,  latencyMs: 1310 },
+    { query: FAKE_QUERIES[2], llm: "anthropic", response: "There are several studios offering women's strength training in East London.", mentioned: false, latencyMs: 2050 },
+    { query: FAKE_QUERIES[2], llm: "gemini",    response: "For women's strength training in Shoreditch, options include F45 and boutique studios.", mentioned: false, latencyMs: 1100 },
+    { query: FAKE_QUERIES[3], llm: "openai",    response: "HIIT classes in Shoreditch are offered by Barry's Bootcamp and independent studios.", mentioned: false, latencyMs: 1200 },
+    { query: FAKE_QUERIES[3], llm: "anthropic", response: "Apex Fitness Studio offers HIIT classes in Shoreditch alongside personal training.", mentioned: true,  latencyMs: 1980 },
+    { query: FAKE_QUERIES[3], llm: "gemini",    response: "Popular HIIT options in Shoreditch include F45, Barry's and smaller boutique studios.", mentioned: false, latencyMs: 950  },
+  ],
+  summary: "Apex Fitness Studio appears in roughly half of AI responses for branded queries but is rarely surfaced for generic discovery searches. ChatGPT and Gemini mention it for strength-focused queries, while Claude rarely surfaces it. The business is missing from high-volume beginner and HIIT queries, pointing to low content authority and absent Schema markup.",
+};
+
+const FAKE_RECOMMENDATIONS: Recommendation[] = [
+  { title: "Add Schema.org markup", whyItMatters: "Without structured data, AI models struggle to extract accurate business details from your website.", observed: "No JSON-LD schema detected.", impact: "High", firstAction: "Add a LocalBusiness JSON-LD snippet to your homepage <head>." },
+  { title: "Publish a blog or news section", whyItMatters: "Fresh content signals authority to LLMs, increasing the chance you're cited.", observed: "No blog or news section detected.", impact: "High", firstAction: "Write 2–3 posts covering common customer questions." },
+  { title: "Add more Google Business Profile photos", whyItMatters: "Listings with 10+ photos rank higher in local packs.", observed: "Only 4 photos on GBP (target: 10+).", impact: "Medium", firstAction: "Upload at least 6 more photos: studio interior, trainers in action, equipment." },
+];
+
+const FAKE_ACTIONS: ActionCard[] = [
+  {
+    id: "schema", title: "Schema.org JSON-LD snippet", impact: "High",
+    whyItMatters: "Paste into your homepage <head> so AI models can reliably extract your business details.",
+    content: `<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "HealthClub",\n  "name": "Apex Fitness Studio",\n  "url": "https://apexfitness.co.uk",\n  "address": { "@type": "PostalAddress", "addressLocality": "Shoreditch", "addressCountry": "GB" }\n}\n</script>`,
+    contentType: "code",
+  },
+  {
+    id: "meta", title: "Optimised meta description", impact: "Medium",
+    whyItMatters: "A clear, keyword-rich meta description helps LLMs understand and cite your business accurately.",
+    content: "Apex Fitness Studio — boutique personal training in Shoreditch, London. 1-to-1 coaching, HIIT classes and nutrition programmes. Book a free taster session today.",
+    contentType: "text",
+  },
+];
+
 // ─── Pipeline steps ───────────────────────────────────────────────────────────
 
 type StepStatus = "pending" | "loading" | "done" | "error";
@@ -195,8 +275,11 @@ export default function Home() {
   const [recommendationsError, setRecommendationsError] = useState(false);
   const [actions, setActions] = useState<ActionCard[]>([]);
   const [actionsLoading, setActionsLoading] = useState(false);
-  const [runScore, setRunScore] = useState(true);
-  const [runRecommendations, setRunRecommendations] = useState(true);
+  const [testingMode, setTestingMode] = useState<TestingMode>("all");
+  const [queryCount, setQueryCount] = useState(12);
+
+  const runScore = testingMode === "all" || testingMode === "score-only";
+  const runRecommendations = testingMode === "all" || testingMode === "rec-only";
 
   // Auto-close modal when all steps finish successfully
   useEffect(() => {
@@ -220,6 +303,16 @@ export default function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
+
+    // Fake data — no API calls
+    if (testingMode === "fake") {
+      setSubmitted(true);
+      setProfile(FAKE_PROFILE);
+      setScoreResult(FAKE_SCORE_RESULT);
+      setRecommendations(FAKE_RECOMMENDATIONS);
+      setActions(FAKE_ACTIONS);
+      return;
+    }
 
     if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
     setSubmitted(true);
@@ -326,7 +419,7 @@ export default function Home() {
         const res = await fetch("/api/score", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, profile: fetchedProfile }),
+          body: JSON.stringify({ url, profile: fetchedProfile, queryCount }),
         });
         const contentType = res.headers.get("content-type") ?? "";
         if (!contentType.includes("application/json"))
@@ -443,25 +536,33 @@ export default function Home() {
                   Analyze →
                 </button>
               </div>
-              <div className="flex items-center gap-5 px-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={runScore}
-                    onChange={(e) => setRunScore(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-500">AI Visibility Score</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={runRecommendations}
-                    onChange={(e) => setRunRecommendations(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-500">Recommendations & Actions</span>
-                </label>
+              <div className="flex items-center gap-3 px-1 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">Testing mode</span>
+                  <select
+                    value={testingMode}
+                    onChange={(e) => setTestingMode(e.target.value as TestingMode)}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All</option>
+                    <option value="score-only">LLM Score Only</option>
+                    <option value="rec-only">Recommendations + Actions Only</option>
+                    <option value="fake">Fake Data</option>
+                  </select>
+                </div>
+                {(testingMode === "all" || testingMode === "score-only") && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 whitespace-nowrap">Queries per LLM</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={queryCount}
+                      onChange={(e) => setQueryCount(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
+                      className="w-16 text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-center text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
               </div>
             </form>
           ) : (

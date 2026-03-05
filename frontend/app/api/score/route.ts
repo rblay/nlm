@@ -421,7 +421,7 @@ function mentionsBusiness(
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { url, profile } = body as { url: string; profile: BusinessProfile };
+  const { url, profile, queryCount = 12 } = body as { url: string; profile: BusinessProfile; queryCount?: number };
 
   if (!url || !profile) {
     return NextResponse.json(
@@ -467,9 +467,13 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Generated ${queries.length} queries for "${profile.name}":`);
   queries.forEach((q, i) => console.log(`  ${i + 1}. ${q}`));
 
+  // Slice to queryCount — generate all intents/queries but only send top N to LLMs
+  const queriesToRun = queries.slice(0, Math.min(queryCount, queries.length));
+  console.log(`\n[score] Running ${queriesToRun.length}/${queries.length} queries against LLMs (queryCount=${queryCount})`);
+
   // 1.4 — query all 3 LLMs for every query
   // OpenAI and Gemini fire all queries in parallel.
-  // Anthropic is batched in groups of 4 with a 1s gap to stay under its
+  // Anthropic is batched in groups of 3 with a 2s gap to stay under its
   // 50k input-tokens-per-minute and concurrent-connection rate limits.
   const allDebugEntries: DebugEntry[] = [];
 
@@ -477,17 +481,17 @@ export async function POST(request: NextRequest) {
   type QueryResult = PromiseSettledResult<{ response: string; latencyMs: number }>;
   const anthropicResults = new Map<string, QueryResult>();
 
-  for (let i = 0; i < queries.length; i += ANTHROPIC_BATCH) {
-    const batch = queries.slice(i, i + ANTHROPIC_BATCH);
+  for (let i = 0; i < queriesToRun.length; i += ANTHROPIC_BATCH) {
+    const batch = queriesToRun.slice(i, i + ANTHROPIC_BATCH);
     const settled = await Promise.allSettled(batch.map(queryAnthropic));
     batch.forEach((q, idx) => anthropicResults.set(q, settled[idx]));
-    if (i + ANTHROPIC_BATCH < queries.length) {
+    if (i + ANTHROPIC_BATCH < queriesToRun.length) {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
 
   await Promise.all(
-    queries.map(async (query) => {
+    queriesToRun.map(async (query) => {
       const [openaiResult, geminiResult] =
         await Promise.allSettled([
           queryOpenAI(query),
