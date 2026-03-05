@@ -18,8 +18,8 @@ const FAKE_PROFILE: BusinessProfile = {
   name: "Apex Fitness Studio",
   type: "Personal Training Studio",
   location: "Shoreditch, London",
-  description: "A boutique personal training studio in the heart of Shoreditch offering bespoke strength and conditioning programmes for all fitness levels.",
-  services: ["1-to-1 personal training", "Small group HIIT classes", "Nutrition coaching", "Body composition analysis"],
+  description: "A boutique personal training studio in the heart of Shoreditch offering bespoke strength and conditioning programmes for all fitness levels. Our coaches design every programme around the individual.",
+  services: ["1-to-1 personal training", "Small group HIIT classes", "Nutrition coaching", "Body composition analysis", "Mobility & recovery sessions"],
   signals: {
     hasSchema: false, hasBlog: false, hasFAQ: false, hasMetaDescription: true,
     titleTag: "Apex Fitness Studio | Personal Training Shoreditch",
@@ -69,24 +69,125 @@ const FAKE_SCORE_RESULT: ScoreResult = {
   summary: "Apex Fitness Studio appears in roughly half of AI responses for branded queries but is rarely surfaced for generic discovery searches. ChatGPT and Gemini mention it for strength-focused queries, while Claude rarely surfaces it. The business is missing from high-volume beginner and HIIT queries, pointing to low content authority and absent Schema markup.",
 };
 
+const FAKE_BLOG_CONTENT = `# 5 Things to Know Before Starting Personal Training in Shoreditch
+
+Whether you're new to the gym or returning after a break, starting a personal training programme is one of the most effective ways to reach your fitness goals. Here's what you need to know before your first session at Apex Fitness Studio.
+
+## 1. Your First Session Is an Assessment
+
+At Apex, we begin every new client relationship with a thorough fitness assessment. We look at your movement patterns, strength baselines, and lifestyle factors — not to judge, but to build a programme that's right for you.
+
+## 2. Consistency Beats Intensity
+
+The most common mistake people make is going too hard too soon. Sustainable progress comes from showing up regularly and allowing your body to adapt. Our coaches build progressive programmes designed for the long term.
+
+## 3. Nutrition Is Half the Picture
+
+Training results are deeply tied to what you eat. Our nutrition coaching services help you understand the fundamentals without restrictive dieting — real food, sensible portions, and habits that stick.
+
+## 4. Shoreditch Has Unique Challenges
+
+From long working hours to packed commutes, our Shoreditch clients face real demands on their time and energy. We design flexible session schedules and short, high-efficiency workouts for busy professionals.
+
+## 5. Small Groups Can Be Just as Effective
+
+If 1-to-1 personal training isn't right for your budget, our small group HIIT classes offer personalised attention at a fraction of the cost. Groups are capped at 6 people so everyone gets coached properly.
+
+Ready to get started? Book a free taster session at Apex Fitness Studio today.`;
+
+const FAKE_FAQ_CONTENT = `Q1: What types of training do you offer at Apex Fitness Studio?
+A1: We offer 1-to-1 personal training, small group HIIT classes (max 6 people), nutrition coaching, and body composition analysis. All programmes are tailored to your individual goals and fitness level.
+
+Q2: Where are you located in Shoreditch?
+A2: We're based in the heart of Shoreditch, East London — easily accessible from Shoreditch High Street and Old Street stations. Full address is provided on booking confirmation.
+
+Q3: Do I need prior gym experience to join?
+A3: Not at all. We welcome complete beginners and design programmes around your current level. Your first session includes a fitness assessment so we can build the right plan for you.
+
+Q4: How much do sessions cost?
+A4: 1-to-1 personal training starts from £65 per session, with discounts for block bookings. HIIT class passes are available from £15 per class. Contact us for current pricing and packages.
+
+Q5: Can you help with weight loss specifically?
+A5: Yes — weight management is one of our most common goals. We combine resistance training, cardio programming, and nutritional guidance to help you lose fat and build sustainable healthy habits.
+
+Q6: What should I bring to my first session?
+A6: Just bring comfortable workout clothes, trainers, and a water bottle. We provide all equipment and will walk you through everything on your first visit.
+
+Q7: Do you offer nutrition coaching as a standalone service?
+A7: Yes. Nutrition coaching is available separately from personal training. Sessions focus on building practical habits, understanding macronutrients, and creating a sustainable eating plan.
+
+Q8: How do I book a session?
+A8: You can book through our website or call us directly. We also offer a free 30-minute taster session for new clients — a great way to see if we're the right fit before committing.`;
+
 const FAKE_RECOMMENDATIONS: Recommendation[] = [
-  { title: "Add Schema.org markup", whyItMatters: "Without structured data, AI models struggle to extract accurate business details from your website.", observed: "No JSON-LD schema detected.", impact: "High", firstAction: "Add a LocalBusiness JSON-LD snippet to your homepage <head>." },
-  { title: "Publish a blog or news section", whyItMatters: "Fresh content signals authority to LLMs, increasing the chance you're cited.", observed: "No blog or news section detected.", impact: "High", firstAction: "Write 2-3 posts covering common customer questions." },
-  { title: "Add more Google Business Profile photos", whyItMatters: "Listings with 10+ photos rank higher in local packs.", observed: "Only 4 photos on GBP (target: 10+).", impact: "Medium", firstAction: "Upload at least 6 more photos: studio interior, trainers in action, equipment." },
+  { title: "Add Schema.org markup", whyItMatters: "Without structured data, AI models struggle to extract accurate business details from your website. Schema markup is the single highest-impact technical fix.", observed: "No JSON-LD schema detected on homepage.", impact: "High", firstAction: "Add a LocalBusiness JSON-LD snippet to your homepage <head>." },
+  { title: "Publish a blog or news section", whyItMatters: "Fresh, indexed content signals authority to LLMs. Businesses with active blogs are cited significantly more often in AI-generated local recommendations.", observed: "No blog or news section detected.", impact: "High", firstAction: "Write 2-3 posts covering common customer questions." },
+  { title: "Create an FAQ page", whyItMatters: "FAQ pages are heavily used by AI models as a source of factual answers. A well-structured FAQ increases the chance your business is cited for question-based queries.", observed: "No FAQ page detected.", impact: "High", firstAction: "Add a dedicated FAQ page covering your most common customer questions." },
+  { title: "Add more Google Business Profile photos", whyItMatters: "Listings with 10+ photos rank higher in local packs and are more likely to be referenced by AI models when describing local businesses.", observed: "Only 4 photos on GBP (target: 10+).", impact: "Medium", firstAction: "Upload at least 6 more photos: studio interior, trainers in action, equipment." },
 ];
 
 const FAKE_ACTIONS: ActionCard[] = [
   {
     id: "schema", title: "Schema.org JSON-LD snippet", impact: "High",
-    whyItMatters: "Paste into your homepage <head> so AI models can reliably extract your business details.",
-    content: `<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "HealthClub",\n  "name": "Apex Fitness Studio",\n  "url": "https://apexfitness.co.uk",\n  "address": { "@type": "PostalAddress", "addressLocality": "Shoreditch", "addressCountry": "GB" }\n}\n</script>`,
+    whyItMatters: "Paste this into your homepage <head> so AI models can reliably extract your business details.",
+    content: `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HealthClub",
+  "name": "Apex Fitness Studio",
+  "url": "https://apexfitness.co.uk",
+  "telephone": "+44-20-0000-0000",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "123 Example Street",
+    "addressLocality": "Shoreditch",
+    "addressRegion": "London",
+    "postalCode": "E1 6AA",
+    "addressCountry": "GB"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 51.5225,
+    "longitude": -0.0787
+  },
+  "openingHours": ["Mo-Fr 06:30-21:00", "Sa-Su 08:00-18:00"],
+  "priceRange": "££"
+}
+</script>`,
     contentType: "code",
   },
   {
-    id: "meta", title: "Optimised meta description", impact: "Medium",
-    whyItMatters: "A clear, keyword-rich meta description helps LLMs understand and cite your business accurately.",
-    content: "Apex Fitness Studio — boutique personal training in Shoreditch, London. 1-to-1 coaching, HIIT classes and nutrition programmes. Book a free taster session today.",
+    id: "blog", title: "Blog post draft", impact: "High",
+    whyItMatters: "Publish this post on your website to build content authority and increase the chance AI models cite you for training-related queries in Shoreditch.",
+    content: FAKE_BLOG_CONTENT,
     contentType: "text",
+  },
+  {
+    id: "faq", title: "FAQ page content", impact: "High",
+    whyItMatters: "Add these Q&As to a dedicated FAQ page on your website. AI models use FAQ pages as a primary source for factual answers about local businesses.",
+    content: FAKE_FAQ_CONTENT,
+    contentType: "text",
+  },
+  {
+    id: "gbp-photos", title: "GBP photo checklist", impact: "Medium",
+    whyItMatters: "Upload at least 6 more photos to reach the 10-photo threshold that boosts local pack ranking.",
+    content: `Photos to upload to your Google Business Profile:
+
+1. Studio exterior / entrance (street-facing shot)
+2. Studio interior — wide angle showing equipment
+3. Trainer working 1-to-1 with a client
+4. HIIT class in session (group energy)
+5. Weights / equipment close-up
+6. Nutrition consultation setup
+7. Body composition analysis equipment
+8. Reception / welcome area (if applicable)
+
+Tips:
+- Use natural light where possible
+- Minimum 720px resolution
+- JPG or PNG format
+- Add a short description to each photo`,
+    contentType: "steps",
   },
 ];
 
@@ -107,10 +208,10 @@ const INITIAL_STEPS: PipelineStep[] = [
 
 function StepIcon({ status }: { status: StepStatus }) {
   if (status === "loading")
-    return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-[#C9A644] border-t-transparent animate-spin" />;
+    return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-[#1e2d4a] border-t-transparent animate-spin" />;
   if (status === "done")
     return (
-      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-green-600 flex items-center justify-center">
+      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-emerald-600 flex items-center justify-center">
         <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M2 5l2.5 2.5L8 3" />
         </svg>
@@ -118,84 +219,222 @@ function StepIcon({ status }: { status: StepStatus }) {
     );
   if (status === "error")
     return (
-      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-red-600 flex items-center justify-center">
+      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-red-500 flex items-center justify-center">
         <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l4 4M7 3l-4 4" />
         </svg>
       </div>
     );
-  return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-white/20" />;
+  return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-[#1e2d4a]/20" />;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const LLM_META: Record<LLMProvider, { label: string; color: string }> = {
-  openai:    { label: "ChatGPT", color: "bg-green-500" },
-  anthropic: { label: "Claude",  color: "bg-blue-500"  },
-  gemini:    { label: "Gemini",  color: "bg-[#C9A644]" },
+  openai:    { label: "ChatGPT", color: "bg-emerald-500" },
+  anthropic: { label: "Claude",  color: "bg-[#1e2d4a]"  },
+  gemini:    { label: "Gemini",  color: "bg-sky-500"    },
 };
 
 function scoreLabel(score: number): { label: string; color: string } {
-  if (score >= 80) return { label: "Excellent", color: "text-green-400" };
-  if (score >= 60) return { label: "Good",      color: "text-[#C9A644]" };
-  if (score >= 40) return { label: "Fair",       color: "text-orange-400" };
-  return { label: "Poor", color: "text-red-400" };
+  if (score >= 80) return { label: "Excellent", color: "text-emerald-700" };
+  if (score >= 60) return { label: "Good",      color: "text-sky-700"     };
+  if (score >= 40) return { label: "Fair",       color: "text-amber-700"  };
+  return { label: "Poor", color: "text-red-600" };
 }
 
-function ScoreBar({
-  label,
-  score,
-  color,
-  mentions,
-  total,
-}: {
-  label: string;
-  score: number;
-  color: string;
-  mentions?: number;
-  total?: number;
+function ScoreBar({ label, score, color, mentions, total }: {
+  label: string; score: number; color: string; mentions?: number; total?: number;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex justify-between text-xs text-gray-400">
+      <div className="flex justify-between text-xs text-[#6b7a8d]">
         <span>{label}</span>
-        <span className="font-medium text-gray-300">
+        <span className="font-medium text-[#1e2d4a]">
           {score}/100
           {mentions !== undefined && total !== undefined && (
-            <span className="text-gray-600 font-normal ml-1">({mentions}/{total})</span>
+            <span className="text-[#9aa3af] font-normal ml-1">({mentions}/{total})</span>
           )}
         </span>
       </div>
-      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full ${color} transition-all duration-700`}
-          style={{ width: `${score}%` }}
-        />
+      <div className="h-1.5 bg-[#1e2d4a]/10 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${score}%` }} />
       </div>
     </div>
   );
 }
 
 const IMPACT_STYLES: Record<RecommendationImpact, string> = {
-  High:   "bg-red-900/30 text-red-400 border border-red-800/30",
-  Medium: "bg-amber-900/30 text-amber-400 border border-amber-800/30",
-  Low:    "bg-white/[0.06] text-gray-400 border border-white/10",
+  High:   "bg-red-100 text-red-700 border border-red-200",
+  Medium: "bg-amber-100 text-amber-700 border border-amber-200",
+  Low:    "bg-[#1e2d4a]/[0.06] text-[#6b7a8d] border border-[#1e2d4a]/15",
 };
 
-// ─── Flip Card (Improvement) ──────────────────────────────────────────────────
+// ─── FAQ / Blog content parsers ───────────────────────────────────────────────
+
+function parseFAQ(content: string): Array<{ title: string; body: string }> {
+  const items: Array<{ title: string; body: string }> = [];
+  const regex = /Q\d+:\s*(.+?)\nA\d+:\s*([\s\S]+?)(?=\n\nQ\d+:|$)/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    items.push({ title: match[1].trim(), body: match[2].trim() });
+  }
+  return items.length > 0 ? items : [{ title: "FAQ Content", body: content }];
+}
+
+function parseBlog(content: string): Array<{ title: string; body: string }> {
+  const firstLine = content.trim().split("\n")[0].replace(/^#+\s*/, "").trim();
+  return [{ title: firstLine || "Blog Post", body: content }];
+}
+
+// ─── Accordion list (for FAQ / blog card backs) ───────────────────────────────
+
+function AccordionList({ items }: { items: Array<{ title: string; body: string }> }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  function copy(text: string, i: number) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedIndex(i);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    });
+  }
+
+  return (
+    <div className="space-y-1.5 overflow-y-auto flex-1 pr-0.5">
+      {items.map((item, i) => (
+        <div key={i} className="border border-[#1e2d4a]/12 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setOpenIndex(openIndex === i ? null : i)}
+            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[#1e2d4a]/[0.03] transition-colors"
+          >
+            <span className="text-sm font-medium text-[#1e2d4a] leading-snug pr-3">{item.title}</span>
+            <span className="text-[#1e2d4a]/30 flex-shrink-0 text-xs">{openIndex === i ? "▲" : "▼"}</span>
+          </button>
+          {openIndex === i && (
+            <div className="px-4 pb-4 pt-1 bg-[#1e2d4a]/[0.025] border-t border-[#1e2d4a]/10">
+              <pre className="text-xs text-[#6b7a8d] whitespace-pre-wrap leading-relaxed font-sans max-h-44 overflow-y-auto">
+                {item.body}
+              </pre>
+              <button
+                onClick={() => copy(item.body, i)}
+                className="mt-3 text-xs px-3 py-1.5 rounded-lg bg-[#1e2d4a] text-white hover:bg-[#2c3e70] transition-colors"
+              >
+                {copiedIndex === i ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Lead Capture Modal ───────────────────────────────────────────────────────
+
+function LeadCaptureModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-[#1e2d4a]/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[#9aa3af] hover:text-[#1e2d4a] transition-colors text-lg leading-none"
+        >
+          ✕
+        </button>
+
+        {submitted ? (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#1e2d4a]" style={{ fontFamily: "var(--font-playfair)" }}>
+              You&apos;re on the list.
+            </h2>
+            <p className="text-sm text-[#6b7a8d] leading-relaxed">
+              We&apos;ll be in touch shortly to discuss how the NLM Marketing Agent can improve your AI visibility.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-2 text-xs text-[#9aa3af] hover:text-[#1e2d4a] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#9aa3af] mb-2">
+                NLM
+              </p>
+              <h2 className="text-2xl font-bold text-[#1e2d4a] leading-snug" style={{ fontFamily: "var(--font-playfair)" }}>
+                Let the agent do it for you.
+              </h2>
+              <p className="text-sm text-[#6b7a8d] leading-relaxed mt-3">
+                The NLM Marketing Agent handles your AI visibility improvements end-to-end — from publishing blog posts to updating your Schema markup. Leave your email and we&apos;ll reach out.
+              </p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@yourbusiness.com"
+                required
+                className="w-full px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-[#ece8e1]/40 text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/25 text-sm"
+              />
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#1e2d4a] text-white font-semibold text-sm hover:bg-[#2c3e70] transition-colors"
+              >
+                Get early access →
+              </button>
+            </form>
+            <p className="text-xs text-[#9aa3af] text-center">
+              No spam. We&apos;ll only use this to follow up about NLM.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Flip Card ────────────────────────────────────────────────────────────────
 
 function ImprovementFlipCard({
   recommendation,
   action,
   isFlipped,
   onFlip,
+  onHireAgent,
 }: {
   recommendation: Recommendation;
   action?: ActionCard;
   isFlipped: boolean;
   onFlip: () => void;
+  onHireAgent: () => void;
 }) {
   const [copied, setCopied] = React.useState(false);
+
+  const isFAQ  = action && (action.id === "faq"  || /^Q1:\s/.test(action.content.trim()));
+  const isBlog = action && (action.id === "blog"  || /^#\s/.test(action.content.trim()));
+
+  const accordionItems = isFAQ
+    ? parseFAQ(action!.content)
+    : isBlog
+    ? parseBlog(action!.content)
+    : null;
 
   function handleCopy() {
     if (!action) return;
@@ -206,83 +445,101 @@ function ImprovementFlipCard({
   }
 
   return (
-    <div className="flip-container w-full" style={{ height: "420px" }}>
+    <div className="flip-container w-full" style={{ height: "460px" }}>
       <div className={`flip-card-inner w-full h-full${isFlipped ? " is-flipped" : ""}`}>
 
-        {/* Front: Problem */}
-        <div className="flip-card-face flip-card-front bg-[#131720] border border-white/[0.08] rounded-2xl p-6 flex flex-col">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <h3 className="text-white font-semibold text-base leading-snug">
-              {recommendation.title}
-            </h3>
-            <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap font-medium flex-shrink-0 ${IMPACT_STYLES[recommendation.impact]}`}>
-              {recommendation.impact}
+        {/* ── Front: Problem ── */}
+        <div className="flip-card-face flip-card-front bg-white border border-[#1e2d4a]/10 rounded-2xl p-6 flex flex-col shadow-sm">
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap font-semibold ${IMPACT_STYLES[recommendation.impact]}`}>
+              {recommendation.impact} impact
             </span>
           </div>
-          <p className="text-gray-400 text-sm leading-relaxed mb-4">
+          <h3 className="text-lg font-bold text-[#1e2d4a] leading-snug mb-4">
+            {recommendation.title}
+          </h3>
+          <p className="text-sm text-[#6b7a8d] leading-relaxed mb-4">
             {recommendation.whyItMatters}
           </p>
-          <div className="text-xs text-gray-500 bg-white/[0.04] rounded-xl px-4 py-3 leading-relaxed">
-            <span className="text-gray-400 font-medium">Observed: </span>
+          <div className="text-xs text-[#9aa3af] bg-[#1e2d4a]/[0.04] rounded-xl px-4 py-3 leading-relaxed">
+            <span className="text-[#6b7a8d] font-medium">Observed: </span>
             {recommendation.observed}
           </div>
           <div className="flex-1" />
           <button
             onClick={onFlip}
-            className="mt-6 w-full py-3 rounded-xl bg-[#C9A644] text-black font-semibold text-sm hover:bg-[#D4B44F] transition-colors"
+            className="mt-6 w-full py-3 rounded-xl bg-[#1e2d4a] text-white font-semibold text-sm hover:bg-[#2c3e70] transition-colors"
           >
             What to do next →
           </button>
         </div>
 
-        {/* Back: Action */}
-        <div className="flip-card-face flip-card-back bg-[#131720] border border-[#C9A644]/20 rounded-2xl p-6 flex flex-col">
+        {/* ── Back: Action ── */}
+        <div className="flip-card-face flip-card-back bg-white border border-[#1e2d4a]/15 rounded-2xl p-6 flex flex-col shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A644]">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#1e2d4a]">
               Action plan
             </p>
             <button
               onClick={onFlip}
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-xs text-[#9aa3af] hover:text-[#1e2d4a] transition-colors"
             >
               ← Back
             </button>
           </div>
-          {action ? (
-            <>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                {action.whyItMatters}
-              </p>
-              <div className="relative flex-1 min-h-0 rounded-xl overflow-hidden">
-                <pre
-                  className={`text-xs px-4 py-4 h-full overflow-auto whitespace-pre-wrap leading-relaxed ${
-                    action.contentType === "code"
-                      ? "bg-black text-gray-300 font-mono"
-                      : "bg-white/[0.04] text-gray-300"
-                  }`}
-                >
-                  {action.content}
-                </pre>
-                <button
-                  onClick={handleCopy}
-                  className="absolute top-3 right-3 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-400 hover:text-gray-200 transition-colors"
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
+
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {action ? (
+              accordionItems ? (
+                /* FAQ or Blog: accordion */
+                <>
+                  <p className="text-xs text-[#6b7a8d] leading-relaxed mb-3">{action.whyItMatters}</p>
+                  <AccordionList items={accordionItems} />
+                  {action.isPlaceholder && (
+                    <p className="text-xs text-amber-600/70 mt-2 italic">Template — customise before using.</p>
+                  )}
+                </>
+              ) : (
+                /* Code or plain text */
+                <>
+                  <p className="text-xs text-[#6b7a8d] leading-relaxed mb-3">{action.whyItMatters}</p>
+                  <div className="relative rounded-xl overflow-hidden">
+                    <pre className={`text-xs px-4 py-4 overflow-auto whitespace-pre-wrap leading-relaxed max-h-48 ${
+                      action.contentType === "code"
+                        ? "bg-[#1a1f2e] text-gray-300 font-mono"
+                        : "bg-[#1e2d4a]/[0.04] text-[#1e2d4a]/80"
+                    }`}>
+                      {action.content}
+                    </pre>
+                    <button
+                      onClick={handleCopy}
+                      className="absolute top-3 right-3 text-xs px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-gray-300 hover:text-white transition-colors border border-white/10"
+                    >
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                  {action.isPlaceholder && (
+                    <p className="text-xs text-amber-600/70 mt-2 italic">Template — customise before using.</p>
+                  )}
+                </>
+              )
+            ) : (
+              /* No action yet: show firstAction text */
+              <div className="bg-[#1e2d4a]/[0.04] rounded-xl px-4 py-4">
+                <p className="text-sm text-[#1e2d4a]/70 leading-relaxed">{recommendation.firstAction}</p>
               </div>
-              {action.isPlaceholder && (
-                <p className="text-xs text-amber-500/60 mt-2 italic">
-                  Template — customise before using.
-                </p>
-              )}
-            </>
-          ) : (
-            <div className="bg-white/[0.04] rounded-xl px-4 py-4 flex-1">
-              <p className="text-gray-300 text-sm leading-relaxed">
-                {recommendation.firstAction}
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* CTA — always pinned at the bottom */}
+          <div className="pt-3 mt-3 border-t border-[#1e2d4a]/[0.08] flex-shrink-0">
+            <button
+              onClick={onHireAgent}
+              className="w-full py-2.5 rounded-xl bg-[#1e2d4a] text-white font-semibold text-xs hover:bg-[#2c3e70] active:scale-[0.98] transition-all tracking-wide"
+            >
+              Hire the NLM Marketing Agent
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -310,8 +567,10 @@ export default function Home() {
   const [testingMode, setTestingMode] = useState<TestingMode>("all");
   const [queryCount, setQueryCount] = useState(12);
 
-  // New UI state
+  // UI state
+  const [showLeadModal, setShowLeadModal] = useState(false);
   const [profileCollapsed, setProfileCollapsed] = useState(true);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [signalsExpanded, setSignalsExpanded] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -322,17 +581,13 @@ export default function Home() {
   const runScore = testingMode === "all" || testingMode === "score-only";
   const runRecommendations = testingMode === "all" || testingMode === "rec-only";
 
-  // Measure carousel container width for card sizing
   useEffect(() => {
     if (!carouselRef.current) return;
-    const obs = new ResizeObserver(([entry]) => {
-      setCardWidth(entry.contentRect.width * 0.88);
-    });
+    const obs = new ResizeObserver(([entry]) => setCardWidth(entry.contentRect.width * 0.88));
     obs.observe(carouselRef.current);
     return () => obs.disconnect();
   }, [submitted]);
 
-  // Auto-close modal when all steps finish
   useEffect(() => {
     if (showModal && steps.every((s) => s.status === "done")) {
       const t = setTimeout(() => setShowModal(false), 800);
@@ -374,6 +629,7 @@ export default function Home() {
     setCarouselIndex(0);
     setFlippedCards(new Set());
     setProfileCollapsed(true);
+    setDescExpanded(false);
     setServicesExpanded(false);
     setSignalsExpanded(false);
   }
@@ -422,7 +678,6 @@ export default function Home() {
     setSteps(activeSteps);
     setShowModal(true);
 
-    // Step 1: Read website & extract profile
     setStep("analyze", { status: "loading" });
     let fetchedProfile: BusinessProfile;
     try {
@@ -446,7 +701,6 @@ export default function Home() {
       return;
     }
 
-    // Recommendations + actions (background)
     if (runRecommendations) {
       setStep("recommend", { status: "loading" });
       setRecommendationsLoading(true);
@@ -475,22 +729,18 @@ export default function Home() {
         body: JSON.stringify({ profile: fetchedProfile, url }),
       })
         .then((r) => r.json())
-        .then((d) => {
-          if (d.actions) setActions(d.actions);
-          setStep("actions", { status: "done" });
-        })
+        .then((d) => { if (d.actions) setActions(d.actions); setStep("actions", { status: "done" }); })
         .catch(() => setStep("actions", { status: "error" }))
         .finally(() => setActionsLoading(false));
     }
 
-    // Score
     if (runScore) {
       setStep("intents", { status: "loading" });
       intentTimeoutRef.current = setTimeout(() => {
         setStep("intents", { status: "done" });
         setStep("chatgpt", { status: "loading" });
-        setStep("claude", { status: "loading" });
-        setStep("gemini", { status: "loading" });
+        setStep("claude",  { status: "loading" });
+        setStep("gemini",  { status: "loading" });
       }, 3000);
       try {
         const res = await fetch("/api/score", {
@@ -506,40 +756,40 @@ export default function Home() {
         if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
         setStep("intents", { status: "done" });
         setStep("chatgpt", { status: "done" });
-        setStep("claude", { status: "done" });
-        setStep("gemini", { status: "done" });
+        setStep("claude",  { status: "done" });
+        setStep("gemini",  { status: "done" });
         setScoreResult(data);
       } catch (err) {
         if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
         const msg = err instanceof Error ? err.message : "Scoring failed";
         setStep("intents", { status: "error", error: msg });
         setStep("chatgpt", { status: "error" });
-        setStep("claude", { status: "error" });
-        setStep("gemini", { status: "error" });
+        setStep("claude",  { status: "error" });
+        setStep("gemini",  { status: "error" });
         setError(msg);
       }
     }
   }
 
   const hasStepError = steps.some((s) => s.status === "error");
-  const isRunning = steps.some((s) => s.status === "loading");
+  const isRunning    = steps.some((s) => s.status === "loading");
 
-  // Combine recommendations + actions into a single carousel data source
-  const improvements = recommendations.map((rec, i) => ({
-    recommendation: rec,
-    action: actions[i],
-  }));
+  const improvements = recommendations.map((rec, i) => ({ recommendation: rec, action: actions[i] }));
+  const totalCards = improvements.length;
 
   return (
-    <main className="min-h-screen bg-[#0c0e14] text-white flex flex-col">
+    <main className="min-h-screen bg-[#ece8e1] text-[#1e2d4a] flex flex-col">
+
+      {/* Lead capture modal */}
+      {showLeadModal && <LeadCaptureModal onClose={() => setShowLeadModal(false)} />}
 
       {/* Progress modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-[#131720] border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+        <div className="fixed inset-0 bg-[#1e2d4a]/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white border border-[#1e2d4a]/10 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
             <div>
-              <h2 className="text-sm font-semibold text-white">Analysing your business</h2>
-              <p className="text-xs text-gray-500 mt-0.5 break-all">{url}</p>
+              <h2 className="text-sm font-semibold text-[#1e2d4a]">Analysing your business</h2>
+              <p className="text-xs text-[#9aa3af] mt-0.5 break-all">{url}</p>
             </div>
             <ul className="space-y-3">
               {steps.map((step) => (
@@ -547,13 +797,11 @@ export default function Home() {
                   <StepIcon status={step.status} />
                   <div className="min-w-0">
                     <span className={`text-sm ${
-                      step.status === "pending" ? "text-gray-500" :
-                      step.status === "error"   ? "text-red-400"  : "text-gray-200"
-                    }`}>
-                      {step.label}
-                    </span>
+                      step.status === "pending" ? "text-[#9aa3af]" :
+                      step.status === "error"   ? "text-red-600"   : "text-[#1e2d4a]"
+                    }`}>{step.label}</span>
                     {step.error && (
-                      <p className="text-xs text-red-400 mt-1 font-mono break-words">{step.error}</p>
+                      <p className="text-xs text-red-500 mt-1 font-mono break-words">{step.error}</p>
                     )}
                   </div>
                 </li>
@@ -562,21 +810,16 @@ export default function Home() {
             {hasStepError && !isRunning && (
               <button
                 onClick={() => setShowModal(false)}
-                className="w-full py-2 text-sm text-gray-400 border border-white/10 rounded-xl hover:bg-white/[0.05] transition-colors"
-              >
-                Close
-              </button>
+                className="w-full py-2 text-sm text-[#6b7a8d] border border-[#1e2d4a]/10 rounded-xl hover:bg-[#1e2d4a]/[0.04] transition-colors"
+              >Close</button>
             )}
           </div>
         </div>
       )}
 
       {/* Nav */}
-      <nav className="px-8 py-5 flex items-center justify-between border-b border-white/[0.06]">
-        <span
-          className="font-bold text-[#C9A644] text-xl tracking-tight"
-          style={{ fontFamily: "var(--font-playfair)" }}
-        >
+      <nav className="px-8 py-5 flex items-center border-b border-[#1e2d4a]/[0.08]">
+        <span className="font-bold text-[#1e2d4a] text-xl tracking-tight" style={{ fontFamily: "var(--font-playfair)" }}>
           NLM
         </span>
       </nav>
@@ -585,21 +828,17 @@ export default function Home() {
       <div className="flex-1 flex flex-col items-center px-4 py-20">
         <div className="max-w-xl w-full text-center space-y-6">
 
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A644]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7a8d]">
             Translating your business value into AI visibility
           </p>
 
-          <h1
-            className="text-5xl font-bold text-white leading-tight"
-            style={{ fontFamily: "var(--font-playfair)" }}
-          >
+          <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight" style={{ fontFamily: "var(--font-playfair)" }}>
             Can people find you on LLMs?
           </h1>
 
-          <p className="text-gray-400 text-lg leading-relaxed">
+          <p className="text-[#6b7a8d] text-lg leading-relaxed">
             Enter your website URL and we&apos;ll analyze how visible and accurately
-            represented your business is across leading AI models, then suggest how
-            to improve it.
+            represented your business is across leading AI models, then suggest how to improve it.
           </p>
 
           {/* ── Pre-submit ── */}
@@ -613,22 +852,22 @@ export default function Home() {
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://yourbusiness.com"
                     required
-                    className="flex-1 px-4 py-3 rounded-xl border border-white/10 bg-white/[0.04] text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#C9A644]/50 focus:border-[#C9A644]/50 text-sm"
+                    className="flex-1 px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-white text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/30 text-sm shadow-sm"
                   />
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-[#C9A644] text-black rounded-xl font-semibold text-sm hover:bg-[#D4B44F] transition-colors whitespace-nowrap"
+                    className="px-6 py-3 bg-[#1e2d4a] text-white rounded-xl font-semibold text-sm hover:bg-[#2c3e70] transition-colors whitespace-nowrap shadow-sm"
                   >
                     Analyze →
                   </button>
                 </div>
                 <div className="flex items-center gap-3 px-1 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 whitespace-nowrap">Testing mode</span>
+                    <span className="text-xs text-[#9aa3af] whitespace-nowrap">Testing mode</span>
                     <select
                       value={testingMode}
                       onChange={(e) => setTestingMode(e.target.value as TestingMode)}
-                      className="text-xs border border-white/10 rounded-lg px-2 py-1.5 text-gray-400 bg-[#131720] focus:outline-none focus:ring-2 focus:ring-[#C9A644]/40"
+                      className="text-xs border border-[#1e2d4a]/15 rounded-lg px-2 py-1.5 text-[#6b7a8d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/20"
                     >
                       <option value="all">All</option>
                       <option value="score-only">LLM Score Only</option>
@@ -638,43 +877,28 @@ export default function Home() {
                   </div>
                   {(testingMode === "all" || testingMode === "score-only") && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 whitespace-nowrap">Queries per LLM</span>
+                      <span className="text-xs text-[#9aa3af] whitespace-nowrap">Queries per LLM</span>
                       <input
-                        type="number"
-                        min={1}
-                        max={12}
-                        value={queryCount}
+                        type="number" min={1} max={12} value={queryCount}
                         onChange={(e) => setQueryCount(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
-                        className="w-16 text-xs border border-white/10 rounded-lg px-2 py-1.5 text-center text-gray-400 bg-[#131720] focus:outline-none focus:ring-2 focus:ring-[#C9A644]/40"
+                        className="w-16 text-xs border border-[#1e2d4a]/15 rounded-lg px-2 py-1.5 text-center text-[#6b7a8d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/20"
                       />
                     </div>
                   )}
                 </div>
               </form>
 
-              {/* Analyze, Measure, Improve — only visible before submission */}
+              {/* Analyze, Measure, Improve */}
               <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
                 {[
-                  {
-                    step: "01",
-                    title: "Analyze",
-                    desc: "We examine your website to understand your business, products, and positioning.",
-                  },
-                  {
-                    step: "02",
-                    title: "Measure",
-                    desc: "We query multiple LLMs to see how, and if, they mention your business.",
-                  },
-                  {
-                    step: "03",
-                    title: "Improve",
-                    desc: "We deliver tailored recommendations to boost your AI visibility.",
-                  },
+                  { step: "01", title: "Analyze", desc: "We examine your website to understand your business, products, and positioning." },
+                  { step: "02", title: "Measure",  desc: "We query multiple LLMs to see how, and if, they mention your business." },
+                  { step: "03", title: "Improve",  desc: "We deliver tailored recommendations to boost your AI visibility." },
                 ].map(({ step, title, desc }) => (
                   <div key={step} className="space-y-2">
-                    <span className="text-xs font-mono text-[#C9A644]">{step}</span>
-                    <h3 className="font-semibold text-white">{title}</h3>
-                    <p className="text-sm text-gray-500">{desc}</p>
+                    <span className="text-xs font-mono text-[#1e2d4a]/40">{step}</span>
+                    <h3 className="font-semibold text-[#1e2d4a]">{title}</h3>
+                    <p className="text-sm text-[#6b7a8d]">{desc}</p>
                   </div>
                 ))}
               </div>
@@ -685,73 +909,73 @@ export default function Home() {
             <div className="mt-8 space-y-4 text-left">
 
               {/* URL chip */}
-              <div className="px-4 py-3 rounded-xl border border-white/10 bg-white/[0.04] flex items-center gap-3">
-                <span className="text-[#C9A644] text-base">🔗</span>
-                <p className="text-sm text-gray-300 break-all flex-1">{url}</p>
-                <button
-                  onClick={resetState}
-                  className="text-xs text-gray-500 hover:text-gray-300 whitespace-nowrap transition-colors"
-                >
+              <div className="px-4 py-3 rounded-xl border border-[#1e2d4a]/10 bg-white/60 flex items-center gap-3 shadow-sm">
+                <span className="text-[#1e2d4a]/40 text-base">🔗</span>
+                <p className="text-sm text-[#1e2d4a] break-all flex-1">{url}</p>
+                <button onClick={resetState} className="text-xs text-[#9aa3af] hover:text-[#1e2d4a] whitespace-nowrap transition-colors">
                   Change
                 </button>
               </div>
 
-              {/* Error */}
               {error && (
-                <div className="rounded-xl border border-red-900/40 bg-red-900/20 px-6 py-4">
-                  <p className="text-sm text-red-400">{error}</p>
+                <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-4">
+                  <p className="text-sm text-red-600">{error}</p>
                 </div>
               )}
 
-              {/* ── Your Business (collapsed by default) ── */}
+              {/* ── Your Business ── */}
               {profile && (
-                <div className="rounded-2xl border border-white/[0.08] bg-[#131720] overflow-hidden">
-                  <button
-                    onClick={() => setProfileCollapsed((c) => !c)}
-                    className="w-full px-6 py-4 flex items-center gap-3 hover:bg-white/[0.03] transition-colors text-left"
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 whitespace-nowrap">
+                <div className="rounded-2xl border border-[#1e2d4a]/10 bg-white overflow-hidden shadow-sm">
+                  {/* Always-visible header */}
+                  <div className="px-6 pt-5 pb-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#9aa3af] mb-3">
                       Your Business
                     </p>
-                    <span className="text-sm font-semibold text-white truncate">{profile.name}</span>
-                    {profile.type && (
-                      <span className="text-xs bg-[#C9A644]/10 text-[#C9A644] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0">
-                        {profile.type}
-                      </span>
+                    <h2 className="text-xl font-bold text-[#1e2d4a] leading-tight mb-1">
+                      {profile.name}
+                    </h2>
+                    {(profile.type || profile.location) && (
+                      <p className="text-sm text-[#6b7a8d] mb-3">
+                        {[profile.type, profile.location].filter(Boolean).join(" · ")}
+                      </p>
                     )}
-                    {profile.location && (
-                      <span className="text-xs text-gray-500 truncate flex-shrink-0 hidden sm:block">{profile.location}</span>
+                    {/* Description with expand */}
+                    <p className={`text-sm text-[#1e2d4a]/60 leading-relaxed${!descExpanded ? " line-clamp-1" : ""}`}>
+                      {profile.description}
+                    </p>
+                    {profile.description.length > 80 && (
+                      <button
+                        onClick={() => setDescExpanded((v) => !v)}
+                        className="text-xs text-[#1e2d4a]/50 hover:text-[#1e2d4a] mt-1 transition-colors"
+                      >
+                        {descExpanded ? "Show less" : "Show more"}
+                      </button>
                     )}
-                    <span className="text-xs text-gray-600 ml-auto flex-shrink-0">
-                      {profileCollapsed ? "▼" : "▲"}
+                  </div>
+
+                  {/* Toggle for services + signals */}
+                  <button
+                    onClick={() => setProfileCollapsed((c) => !c)}
+                    className="w-full px-6 py-2.5 flex items-center gap-2 border-t border-[#1e2d4a]/[0.06] bg-[#1e2d4a]/[0.02] hover:bg-[#1e2d4a]/[0.04] transition-colors"
+                  >
+                    <span className="text-xs text-[#9aa3af]">
+                      {profileCollapsed ? "▼ Show services & signals" : "▲ Hide details"}
                     </span>
                   </button>
 
                   {!profileCollapsed && (
-                    <div className="border-t border-white/[0.06]">
-                      <div className="px-6 py-4 border-b border-white/[0.06]">
-                        <p className="text-sm text-gray-400 leading-relaxed">{profile.description}</p>
-                      </div>
-
+                    <div className="border-t border-[#1e2d4a]/[0.06]">
                       {profile.services.length > 0 && (
-                        <div className="px-6 py-4 border-b border-white/[0.06]">
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
-                            Services
-                          </p>
+                        <div className="px-6 py-4 border-b border-[#1e2d4a]/[0.06]">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af] mb-3">Services</p>
                           <div className="flex flex-wrap gap-2">
                             {(servicesExpanded ? profile.services : profile.services.slice(0, 4)).map((s) => (
-                              <span
-                                key={s}
-                                className="text-xs bg-white/[0.05] text-gray-300 px-3 py-1.5 rounded-lg"
-                              >
+                              <span key={s} className="text-xs bg-[#1e2d4a]/[0.06] text-[#1e2d4a] px-3 py-1.5 rounded-lg">
                                 {s}
                               </span>
                             ))}
                             {!servicesExpanded && profile.services.length > 4 && (
-                              <button
-                                onClick={() => setServicesExpanded(true)}
-                                className="text-xs text-[#C9A644] hover:text-[#D4B44F] px-2 py-1.5 transition-colors"
-                              >
+                              <button onClick={() => setServicesExpanded(true)} className="text-xs text-[#6b7a8d] hover:text-[#1e2d4a] px-2 py-1.5 transition-colors">
                                 +{profile.services.length - 4} more
                               </button>
                             )}
@@ -760,9 +984,7 @@ export default function Home() {
                       )}
 
                       <div className="px-6 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
-                          Signals detected
-                        </p>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af] mb-3">Signals detected</p>
                         <div className="flex flex-wrap gap-2">
                           {(() => {
                             const allSignals = [
@@ -783,22 +1005,14 @@ export default function Home() {
                             return (
                               <>
                                 {visible.map(({ label, active }) => (
-                                  <span
-                                    key={label}
-                                    className={`text-xs px-2.5 py-1.5 rounded-lg font-medium ${
-                                      active
-                                        ? "bg-green-900/30 text-green-400"
-                                        : "bg-white/[0.04] text-gray-500"
-                                    }`}
-                                  >
+                                  <span key={label} className={`text-xs px-2.5 py-1.5 rounded-lg font-medium ${
+                                    active ? "bg-emerald-100 text-emerald-700" : "bg-[#1e2d4a]/[0.04] text-[#9aa3af]"
+                                  }`}>
                                     {active ? "✓" : "✗"} {label}
                                   </span>
                                 ))}
                                 {!signalsExpanded && allSignals.length > 5 && (
-                                  <button
-                                    onClick={() => setSignalsExpanded(true)}
-                                    className="text-xs text-[#C9A644] hover:text-[#D4B44F] px-2 py-1.5 transition-colors"
-                                  >
+                                  <button onClick={() => setSignalsExpanded(true)} className="text-xs text-[#6b7a8d] hover:text-[#1e2d4a] px-2 py-1.5 transition-colors">
                                     +{allSignals.length - 5} more
                                   </button>
                                 )}
@@ -812,68 +1026,53 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ── AI Visibility Score — two-column layout ── */}
+              {/* ── AI Visibility Score — two column ── */}
               {scoreResult && (
-                <div className="rounded-2xl border border-white/[0.08] bg-[#131720] overflow-hidden">
-                  <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                      AI Visibility Score
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {scoreResult.queries.length} queries · 3 AI models
-                    </p>
+                <div className="rounded-2xl border border-[#1e2d4a]/10 bg-white overflow-hidden shadow-sm">
+                  <div className="px-6 py-4 border-b border-[#1e2d4a]/[0.06] flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af]">AI Visibility Score</p>
+                    <p className="text-xs text-[#9aa3af]">{scoreResult.queries.length} queries · 3 AI models</p>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-white/[0.06]">
-                    {/* Left: scores */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-[#1e2d4a]/[0.06]">
                     <div className="px-6 py-5 space-y-5">
                       <div className="flex items-end gap-3">
-                        <p className="text-5xl font-bold text-white leading-none">
-                          {scoreResult.overallScore}
-                        </p>
+                        <p className="text-5xl font-bold text-[#1e2d4a] leading-none">{scoreResult.overallScore}</p>
                         <div className="pb-1">
-                          <span className="text-gray-500 text-sm">/100</span>
+                          <span className="text-[#9aa3af] text-sm">/100</span>
                           <p className={`text-xs font-semibold ${scoreLabel(scoreResult.overallScore).color}`}>
                             {scoreLabel(scoreResult.overallScore).label}
                           </p>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[#C9A644] transition-all duration-700"
-                          style={{ width: `${scoreResult.overallScore}%` }}
-                        />
+                      <div className="h-1.5 bg-[#1e2d4a]/10 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-[#1e2d4a] transition-all duration-700" style={{ width: `${scoreResult.overallScore}%` }} />
                       </div>
                       <div className="space-y-3 pt-1">
                         {scoreResult.perLLM.map((s) => {
                           const meta = LLM_META[s.llm];
-                          return (
-                            <ScoreBar
-                              key={s.llm}
-                              label={meta.label}
-                              score={s.score}
-                              color={meta.color}
-                              mentions={s.mentions}
-                              total={s.totalQueries}
-                            />
-                          );
+                          return <ScoreBar key={s.llm} label={meta.label} score={s.score} color={meta.color} mentions={s.mentions} total={s.totalQueries} />;
                         })}
                       </div>
                     </div>
-
-                    {/* Right: what this means */}
-                    <div className="px-6 py-5 border-t sm:border-t-0 border-white/[0.06]">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
-                        What this means
-                      </p>
-                      {scoreResult.summary ? (
-                        <p className="text-sm text-gray-400 leading-relaxed">
-                          {scoreResult.summary}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-600 italic">No summary available.</p>
-                      )}
+                    <div className="px-6 py-5 border-t sm:border-t-0 border-[#1e2d4a]/[0.06]">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af] mb-3">What this means</p>
+                      {scoreResult.summary
+                        ? <p className="text-sm text-[#6b7a8d] leading-relaxed">{scoreResult.summary}</p>
+                        : <p className="text-sm text-[#9aa3af] italic">No summary available.</p>}
                     </div>
+                  </div>
+
+                  {/* Full-width CTA row */}
+                  <div className="px-6 py-5 border-t border-[#1e2d4a]/[0.06] space-y-3">
+                    <p className="text-sm text-[#1e2d4a] font-medium leading-snug text-center">
+                      Use NLM&apos;s agent to continuously improve your LLM presence.
+                    </p>
+                    <button
+                      onClick={() => setShowLeadModal(true)}
+                      className="w-full py-2.5 rounded-xl bg-[#1e2d4a] text-white font-semibold text-xs hover:bg-[#2c3e70] active:scale-[0.98] transition-all tracking-wide"
+                    >
+                      Hire the NLM Marketing Agent
+                    </button>
                   </div>
                 </div>
               )}
@@ -881,29 +1080,23 @@ export default function Home() {
               {/* ── Recommended Improvements carousel ── */}
               {profile && (
                 recommendationsError ? (
-                  <div className="rounded-xl border border-red-900/30 bg-red-900/10 px-5 py-3">
-                    <p className="text-xs text-red-400">
-                      Could not generate recommendations, check your OPENAI_API_KEY.
-                    </p>
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-3">
+                    <p className="text-xs text-red-500">Could not generate recommendations, check your OPENAI_API_KEY.</p>
                   </div>
                 ) : (recommendationsLoading || improvements.length > 0) && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                          Recommended Improvements
-                        </p>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af]">Recommended Improvements</p>
                         {!recommendationsLoading && improvements.length > 0 && (
-                          <p className="text-xs text-gray-600 mt-0.5">
-                            {actionsLoading
-                              ? "Generating action plans..."
-                              : "Flip a card to see the action plan"}
+                          <p className="text-xs text-[#9aa3af] mt-0.5">
+                            {actionsLoading ? "Generating action plans..." : "Flip a card to see the action plan"}
                           </p>
                         )}
                       </div>
                       {(recommendationsLoading || actionsLoading) && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <div className="h-3.5 w-3.5 rounded-full border-2 border-gray-700 border-t-[#C9A644] animate-spin" />
+                        <div className="flex items-center gap-1.5 text-xs text-[#9aa3af]">
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-[#1e2d4a]/20 border-t-[#1e2d4a] animate-spin" />
                           {recommendationsLoading ? "Analysing gaps..." : "Generating..."}
                         </div>
                       )}
@@ -911,48 +1104,64 @@ export default function Home() {
 
                     {improvements.length > 0 && (
                       <>
-                        {/* Carousel with next-card peek */}
-                        <div ref={carouselRef} className="overflow-hidden w-full">
-                          <div
-                            className="flex transition-transform duration-300 ease-in-out"
-                            style={{
-                              transform:
-                                cardWidth > 0
-                                  ? `translateX(-${carouselIndex * (cardWidth + 16)}px)`
-                                  : "none",
-                            }}
-                          >
-                            {improvements.map((item, i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  width: cardWidth > 0 ? `${cardWidth}px` : "88%",
-                                  flexShrink: 0,
-                                  marginRight: "16px",
-                                }}
-                              >
-                                <ImprovementFlipCard
-                                  recommendation={item.recommendation}
-                                  action={item.action}
-                                  isFlipped={flippedCards.has(i)}
-                                  onFlip={() => flipCard(i)}
-                                />
-                              </div>
-                            ))}
+                        {/* Carousel with arrows */}
+                        <div className="relative">
+                          {/* Prev arrow */}
+                          {carouselIndex > 0 && (
+                            <button
+                              onClick={() => setCarouselIndex((i) => i - 1)}
+                              className="absolute left-0 z-10 top-[220px] -translate-y-1/2 -translate-x-3 w-9 h-9 rounded-full bg-white border border-[#1e2d4a]/15 shadow-md flex items-center justify-center hover:bg-[#1e2d4a] hover:text-white text-[#1e2d4a] transition-colors text-sm font-medium"
+                            >
+                              ‹
+                            </button>
+                          )}
+
+                          <div ref={carouselRef} className="overflow-hidden w-full">
+                            <div
+                              className="flex transition-transform duration-300 ease-in-out"
+                              style={{
+                                transform: cardWidth > 0 ? `translateX(-${carouselIndex * (cardWidth + 16)}px)` : "none",
+                              }}
+                            >
+                              {improvements.map((item, i) => (
+                                <div
+                                  key={i}
+                                  style={{ width: cardWidth > 0 ? `${cardWidth}px` : "88%", flexShrink: 0, marginRight: "16px" }}
+                                >
+                                  <ImprovementFlipCard
+                                    recommendation={item.recommendation}
+                                    action={item.action}
+                                    isFlipped={flippedCards.has(i)}
+                                    onFlip={() => flipCard(i)}
+                                    onHireAgent={() => setShowLeadModal(true)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
                           </div>
+
+                          {/* Next arrow */}
+                          {carouselIndex < totalCards - 1 && (
+                            <button
+                              onClick={() => setCarouselIndex((i) => i + 1)}
+                              className="absolute right-0 z-10 top-[220px] -translate-y-1/2 translate-x-3 w-9 h-9 rounded-full bg-white border border-[#1e2d4a]/15 shadow-md flex items-center justify-center hover:bg-[#1e2d4a] hover:text-white text-[#1e2d4a] transition-colors text-sm font-medium"
+                            >
+                              ›
+                            </button>
+                          )}
                         </div>
 
-                        {/* Navigation dots */}
-                        {improvements.length > 1 && (
-                          <div className="flex items-center justify-center gap-2 pt-2">
+                        {/* Dots */}
+                        {totalCards > 1 && (
+                          <div className="flex items-center justify-center gap-2 pt-1">
                             {improvements.map((_, i) => (
                               <button
                                 key={i}
                                 onClick={() => setCarouselIndex(i)}
                                 className={`rounded-full transition-all duration-200 ${
                                   i === carouselIndex
-                                    ? "bg-[#C9A644] w-5 h-2"
-                                    : "bg-white/20 hover:bg-white/35 w-2 h-2"
+                                    ? "bg-[#1e2d4a] w-5 h-2"
+                                    : "bg-[#1e2d4a]/20 hover:bg-[#1e2d4a]/40 w-2 h-2"
                                 }`}
                               />
                             ))}
@@ -966,61 +1175,48 @@ export default function Home() {
 
               {/* ── Debug panel ── */}
               {scoreResult && (
-                <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+                <div className="rounded-2xl border border-[#1e2d4a]/10 overflow-hidden shadow-sm">
                   <button
                     onClick={() => setDebugOpen((o) => !o)}
-                    className="w-full px-6 py-3 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                    className="w-full px-6 py-3 flex items-center justify-between bg-[#1e2d4a]/[0.03] hover:bg-[#1e2d4a]/[0.05] transition-colors"
                   >
-                    <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">
+                    <span className="text-xs font-mono text-[#9aa3af] uppercase tracking-widest">
                       Debug, Query x LLM Results
                     </span>
-                    <span className="text-xs text-gray-600">
-                      {debugOpen ? "▲ hide" : "▼ show"}
-                    </span>
+                    <span className="text-xs text-[#9aa3af]">{debugOpen ? "▲ hide" : "▼ show"}</span>
                   </button>
 
                   {debugOpen && (
-                    <div className="overflow-x-auto">
-                      <div className="px-6 py-4 border-b border-white/[0.06] bg-[#131720] grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="overflow-x-auto bg-white">
+                      <div className="px-6 py-4 border-b border-[#1e2d4a]/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
-                            Common Customer Intents
-                          </p>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af] mb-2">Common Customer Intents</p>
                           <ol className="space-y-1">
                             {scoreResult.intents.map((intent, i) => (
-                              <li key={i} className="text-xs text-gray-500">
-                                <span className="font-mono text-gray-700 mr-2">
-                                  {String(i + 1).padStart(2, "0")}
-                                </span>
-                                {intent}
+                              <li key={i} className="text-xs text-[#6b7a8d]">
+                                <span className="font-mono text-[#9aa3af] mr-2">{String(i + 1).padStart(2, "0")}</span>{intent}
                               </li>
                             ))}
                           </ol>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
-                            Generated Queries
-                          </p>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af] mb-2">Generated Queries</p>
                           <ol className="space-y-1">
                             {scoreResult.queries.map((q, i) => (
-                              <li key={i} className="text-xs text-gray-400">
-                                <span className="font-mono text-gray-700 mr-2">
-                                  {String(i + 1).padStart(2, "0")}
-                                </span>
-                                {q}
+                              <li key={i} className="text-xs text-[#1e2d4a]/70">
+                                <span className="font-mono text-[#9aa3af] mr-2">{String(i + 1).padStart(2, "0")}</span>{q}
                               </li>
                             ))}
                           </ol>
                         </div>
                       </div>
-
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                            <th className="text-left px-4 py-2 text-gray-600 font-medium w-1/2">Query</th>
-                            <th className="text-left px-4 py-2 text-gray-600 font-medium">LLM</th>
-                            <th className="text-left px-4 py-2 text-gray-600 font-medium">Mentioned</th>
-                            <th className="text-left px-4 py-2 text-gray-600 font-medium">Latency</th>
+                          <tr className="bg-[#1e2d4a]/[0.03] border-b border-[#1e2d4a]/[0.06]">
+                            <th className="text-left px-4 py-2 text-[#9aa3af] font-medium w-1/2">Query</th>
+                            <th className="text-left px-4 py-2 text-[#9aa3af] font-medium">LLM</th>
+                            <th className="text-left px-4 py-2 text-[#9aa3af] font-medium">Mentioned</th>
+                            <th className="text-left px-4 py-2 text-[#9aa3af] font-medium">Latency</th>
                             <th className="px-4 py-2" />
                           </tr>
                         </thead>
@@ -1032,31 +1228,31 @@ export default function Home() {
                             return (
                               <React.Fragment key={rowKey}>
                                 <tr
-                                  className="border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer"
+                                  className="border-b border-[#1e2d4a]/[0.05] hover:bg-[#1e2d4a]/[0.02] cursor-pointer"
                                   onClick={() => toggleRow(rowKey)}
                                 >
-                                  <td className="px-4 py-2 text-gray-400 max-w-xs truncate">{entry.query}</td>
-                                  <td className="px-4 py-2 text-gray-500">{meta.label}</td>
+                                  <td className="px-4 py-2 text-[#6b7a8d] max-w-xs truncate">{entry.query}</td>
+                                  <td className="px-4 py-2 text-[#6b7a8d]">{meta.label}</td>
                                   <td className="px-4 py-2">
                                     {entry.error ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 font-medium">error</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">error</span>
                                     ) : entry.mentioned ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 font-medium">yes</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">yes</span>
                                     ) : (
-                                      <span className="px-1.5 py-0.5 rounded bg-white/[0.04] text-gray-600">no</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-[#1e2d4a]/[0.05] text-[#9aa3af]">no</span>
                                     )}
                                   </td>
-                                  <td className="px-4 py-2 text-gray-600 font-mono">
+                                  <td className="px-4 py-2 text-[#9aa3af] font-mono">
                                     {entry.error ? "—" : entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
                                   </td>
-                                  <td className="px-4 py-2 text-gray-600">{isExpanded ? "▲" : "▼"}</td>
+                                  <td className="px-4 py-2 text-[#9aa3af]">{isExpanded ? "▲" : "▼"}</td>
                                 </tr>
                                 {isExpanded && (
-                                  <tr className="bg-white/[0.02] border-b border-white/[0.04]">
+                                  <tr className="bg-[#1e2d4a]/[0.02] border-b border-[#1e2d4a]/[0.05]">
                                     <td colSpan={5} className="px-4 py-3 leading-relaxed whitespace-pre-wrap">
                                       {entry.error
-                                        ? <span className="text-red-400 font-mono text-xs">{entry.errorMessage ?? "Unknown error"}</span>
-                                        : <span className="text-gray-500 text-xs">{entry.response || <span className="italic">No response</span>}</span>}
+                                        ? <span className="text-red-500 font-mono text-xs">{entry.errorMessage ?? "Unknown error"}</span>
+                                        : <span className="text-[#6b7a8d] text-xs">{entry.response || <span className="italic">No response</span>}</span>}
                                     </td>
                                   </tr>
                                 )}
@@ -1075,7 +1271,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.06] py-6 text-center text-xs text-gray-600">
+      <footer className="border-t border-[#1e2d4a]/[0.08] py-6 text-center text-xs text-[#9aa3af]">
         NLM · {new Date().getFullYear()}
       </footer>
     </main>
