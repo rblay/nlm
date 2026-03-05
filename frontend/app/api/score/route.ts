@@ -236,6 +236,110 @@ async function queryGemini(
   };
 }
 
+// ─── 1.5 Bucket-level hit analysis + plain-English summary ───────────────────
+
+// Maps query index → one of 9 intent buckets (indices 8+ all collapse to "Goal-based")
+const BUCKET_LABELS = [
+  "Discovery",
+  "Fit & Persona",
+  "Constraints",
+  "Quality & Trust",
+  "Experience & Vibe",
+  "Price & Value",
+  "Comparison",
+  "Logistics & Booking",
+  "Goal-based searches",   // covers query indices 8, 9, 10 (the 3 problem-based intents)
+] as const;
+
+type BucketLabel = typeof BUCKET_LABELS[number];
+
+interface BucketScore {
+  bucket: BucketLabel;
+  mentions: number;   // how many (query × LLM) pairs returned a mention
+  total: number;      // max possible = LLMs × queries in this bucket
+}
+
+function computeBucketScores(
+  queries: string[],
+  debug: DebugEntry[]
+): BucketScore[] {
+  const data: { mentions: number; total: number }[] = BUCKET_LABELS.map(() => ({
+    mentions: 0,
+    total: 0,
+  }));
+
+  queries.forEach((query, qi) => {
+    const bucketIdx = Math.min(qi, 8); // indices 8+ → bucket 8 (Goal-based)
+    const forQuery = debug.filter((e) => e.query === query);
+    data[bucketIdx].mentions += forQuery.filter((e) => e.mentioned).length;
+    data[bucketIdx].total += forQuery.length; // typically 3 (one per LLM)
+  });
+
+  return BUCKET_LABELS.map((bucket, i) => ({
+    bucket,
+    mentions: data[i].mentions,
+    total: data[i].total,
+  }));
+}
+
+async function generateSummary(
+  profile: BusinessProfile,
+  bucketScores: BucketScore[]
+): Promise<string> {
+  // Build a plain-text breakdown for the LLM prompt
+  const lines = bucketScores
+    .filter((b) => b.total > 0)
+    .map((b) => {
+      const pct = Math.round((b.mentions / b.total) * 100);
+      const tag = pct >= 67 ? "✓ strong" : pct >= 34 ? "~ partial" : "✗ weak";
+      return `- ${b.bucket}: ${b.mentions}/${b.total} (${pct}%) ${tag}`;
+    })
+    .join("\n");
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You write concise, plain-English AI visibility summaries for small business owners.
+
+Rules:
+- Write 100–150 words, no more
+- Open with one overall verdict sentence
+- Name 1–2 areas they perform well (only if score is strong/partial)
+- Name 1–2 specific gaps (weak or missing buckets) — describe what type of search they're invisible for, in plain terms the owner understands
+- End with one practical nudge
+- Use second person: "you" / "your business"
+- Never say: "buckets", "LLM", "ChatGPT", "Claude", "Gemini", "AI models"
+- Instead say: "AI assistants", "when someone searches for...", "AI recommendations"
+- Translate technical bucket names into plain language:
+    Discovery → when people are browsing what's available nearby
+    Fit & Persona → when someone is looking for the right fit for their situation
+    Constraints → when people filter by opening hours, price, or specific amenities
+    Quality & Trust → when people ask about reviews or the best-rated options
+    Experience & Vibe → when people ask about atmosphere or what it's like
+    Price & Value → when people ask about cost, deals, or trials
+    Comparison → when people compare options in the area
+    Logistics & Booking → when people ask how to book or what the process is
+    Goal-based searches → when someone has a specific goal (e.g. losing weight, recovering from injury)
+- Be specific and useful — avoid generic filler like "there is room for improvement"`,
+      },
+      {
+        role: "user",
+        content: `Business: ${profile.name} — ${profile.type} in ${profile.location}
+
+Visibility by search intent (mentions out of tests run; ✓ = strong, ~ = partial, ✗ = weak):
+${lines}
+
+Write the summary now.`,
+      },
+    ],
+    max_tokens: 250,
+  });
+
+  return completion.choices[0].message.content?.trim() ?? "";
+}
+
 // ─── Detection: does the response mention this business? ─────────────────────
 
 // Generic business-type words that shouldn't count as distinctive name tokens
@@ -442,12 +546,24 @@ export async function POST(request: NextRequest) {
     perLLM.reduce((sum, s) => sum + s.score, 0) / perLLM.length
   );
 
+  // 1.5 — bucket analysis + plain-English summary
+  const bucketScores = computeBucketScores(queries, allDebugEntries);
+
+  let summary = "";
+  try {
+    summary = await generateSummary(profile, bucketScores);
+  } catch (err) {
+    console.error("[score] Summary generation failed:", err);
+    // Non-fatal — we still return the score without a summary
+  }
+
   const scoreResult: ScoreResult = {
     overallScore,
     perLLM,
     intents,
     queries,
     debug: allDebugEntries,
+    summary,
   };
 
   console.log("\n========== SCORE RESULT ==========");

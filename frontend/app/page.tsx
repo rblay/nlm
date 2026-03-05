@@ -509,6 +509,17 @@ export default function Home() {
                       );
                     })}
                   </div>
+
+                  {scoreResult.summary && (
+                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                        What this means
+                      </p>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {scoreResult.summary}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
