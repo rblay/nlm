@@ -131,3 +131,4 @@ This is the longer-term product vision. Decisions still to be made.
 - **Streaming vs. polling**: Full pipeline will be slow. Server-Sent Events are the cleanest UX solution; polling a job ID is simpler to implement.
 - **Caching**: Cache results per domain so repeated demo submissions are instant and don't burn API credits.
 - **Naming**: The README says "LLMRank", the UI says "LLMRank", the project folder is "nlm". Decide on a canonical name before the demo.
+- **Backend architecture**: Decided to keep everything in Next.js API routes for the demo — simpler setup, one deploy, sufficient for Steps 1 and 2. The main risk is the ~30–60s pipeline hitting Vercel's default timeout; mitigated by splitting into separate small API calls and using SSE for streaming progress. **Revisit as the product evolves**: a separate backend (e.g. FastAPI or Node/Express) becomes the right call when Step 3 (Improve) introduces background jobs, scheduled tasks, or persistent queues.
