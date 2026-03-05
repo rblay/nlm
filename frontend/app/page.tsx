@@ -571,12 +571,12 @@ type PipelineStep = { id: string; label: string; status: StepStatus; error?: str
 
 const INITIAL_STEPS: PipelineStep[] = [
   { id: "analyze",   label: "Reading your website",             status: "pending" },
-  { id: "intents",   label: "Analysing key customer intent",    status: "pending" },
-  { id: "chatgpt",   label: "Calculating ChatGPT visibility",   status: "pending" },
-  { id: "claude",    label: "Calculating Claude visibility",    status: "pending" },
-  { id: "gemini",    label: "Calculating Gemini visibility",    status: "pending" },
-  { id: "recommend", label: "Generating recommendations",       status: "pending" },
-  { id: "actions",   label: "Suggesting relevant actions",      status: "pending" },
+  { id: "intents",   label: "Figuring out what your customers are searching for...", status: "pending" },
+  { id: "chatgpt",   label: "Checking if AI recommends you...", status: "pending" },
+  { id: "claude",    label: "Searching for your business across AI guides...", status: "pending" },
+  { id: "gemini",    label: "Scanning AI recommendations in your area...", status: "pending" },
+  { id: "recommend", label: "Identifying your visibility gaps...", status: "pending" },
+  { id: "actions",   label: "Putting together your action plan...", status: "pending" },
 ];
 
 function StepIcon({ status }: { status: StepStatus }) {
@@ -1125,14 +1125,14 @@ export default function Home() {
     const activeSteps: PipelineStep[] = [
       { id: "analyze",   label: "Reading your website",             status: "pending" },
       ...(runScore ? [
-        { id: "intents",   label: "Analysing key customer intent",   status: "pending" as StepStatus },
-        { id: "chatgpt",   label: "Calculating ChatGPT visibility",  status: "pending" as StepStatus },
-        { id: "claude",    label: "Calculating Claude visibility",   status: "pending" as StepStatus },
-        { id: "gemini",    label: "Calculating Gemini visibility",   status: "pending" as StepStatus },
+        { id: "intents",   label: "Figuring out what your customers are searching for...", status: "pending" as StepStatus },
+        { id: "chatgpt",   label: "Checking if AI recommends you...", status: "pending" as StepStatus },
+        { id: "claude",    label: "Searching for your business across AI guides...", status: "pending" as StepStatus },
+        { id: "gemini",    label: "Scanning AI recommendations in your area...", status: "pending" as StepStatus },
       ] : []),
       ...(runRecommendations ? [
-        { id: "recommend", label: "Generating recommendations",      status: "pending" as StepStatus },
-        { id: "actions",   label: "Suggesting relevant actions",     status: "pending" as StepStatus },
+        { id: "recommend", label: "Identifying your visibility gaps...", status: "pending" as StepStatus },
+        { id: "actions",   label: "Putting together your action plan...", status: "pending" as StepStatus },
       ] : []),
     ];
     setSteps(activeSteps);
@@ -1290,8 +1290,9 @@ export default function Home() {
             Translating your business value into AI visibility
           </p>
 
-          <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight" style={{ fontFamily: "var(--font-playfair)" }}>
-            AI is recommending businesses. Is yours one of them?
+          <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight text-left" style={{ fontFamily: "var(--font-playfair)" }}>
+            AI is recommending businesses.<br />
+            Is yours one of them?
           </h1>
 
           <p className="text-[#6b7a8d] text-lg leading-relaxed">
