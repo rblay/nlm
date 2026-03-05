@@ -73,6 +73,24 @@ export interface RecommendationResult {
   recommendations: Recommendation[];
 }
 
+// ─── Actions pipeline ─────────────────────────────────────────────────────────
+
+export type ActionContentType = "code" | "text" | "steps" | "markdown";
+
+export interface ActionCard {
+  id: string;
+  title: string;
+  whyItMatters: string;
+  impact: RecommendationImpact;
+  content: string;            // copy-paste text, code snippet, or step list
+  contentType: ActionContentType;
+  isPlaceholder?: boolean;    // true = LLM-generated placeholder (real call coming later)
+}
+
+export interface ActionsResult {
+  actions: ActionCard[];
+}
+
 // ─── API route response shapes ────────────────────────────────────────────────
 
 // POST /api/analyze — scrape URL, extract business profile
@@ -85,3 +103,6 @@ export interface ScoreResponse extends ScoreResult {}
 
 // POST /api/recommend — analyse signals, return prioritised recommendations
 export interface RecommendResponse extends RecommendationResult {}
+
+// POST /api/actions — generate copy-paste action cards from signals
+export interface ActionsResponse extends ActionsResult {}

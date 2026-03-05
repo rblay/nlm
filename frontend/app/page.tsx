@@ -7,6 +7,7 @@ import type {
   RecommendationImpact,
   ScoreResult,
   LLMProvider,
+  ActionCard,
 } from "@/lib/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,6 +87,59 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   );
 }
 
+function ActionCardComponent({ action }: { action: ActionCard }) {
+  const [copied, setCopied] = React.useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(action.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const isCode = action.contentType === "code";
+  const isSteps = action.contentType === "steps";
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900 leading-snug">{action.title}</h3>
+          {action.isPlaceholder && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium whitespace-nowrap flex-shrink-0">
+              template
+            </span>
+          )}
+        </div>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${IMPACT_STYLES[action.impact]}`}>
+          {action.impact} impact
+        </span>
+      </div>
+
+      <p className="text-xs text-gray-500 leading-relaxed">{action.whyItMatters}</p>
+
+      <div className="relative">
+        <pre className={`text-xs rounded-md px-3 py-3 overflow-x-auto whitespace-pre-wrap leading-relaxed ${
+          isCode ? "bg-gray-900 text-gray-100 font-mono" : "bg-gray-50 text-gray-700"
+        }`}>
+          {action.content}
+        </pre>
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-400 hover:text-gray-200 transition-colors border border-gray-200/20"
+          title="Copy to clipboard"
+        >
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+
+      {isSteps && (
+        <p className="text-xs text-gray-400 italic">Follow the steps above — no code required.</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -100,6 +154,10 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState(false);
+  const [actions, setActions] = useState<ActionCard[]>([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [runScore, setRunScore] = useState(true);
+  const [runRecommendations, setRunRecommendations] = useState(true);
 
   function toggleRow(key: string) {
     setExpandedRows((prev) => {
@@ -122,6 +180,8 @@ export default function Home() {
     setRecommendations([]);
     setRecommendationsLoading(false);
     setRecommendationsError(false);
+    setActions([]);
+    setActionsLoading(false);
 
     // ── Step 1: Extract business profile ────────────────────────────────────
     setLoadingStatus("Extracting business info...");
@@ -141,19 +201,34 @@ export default function Home() {
       fetchedProfile = data.profile;
       setProfile(fetchedProfile);
 
-      // Kick off recommendations in the background after profile is ready
-      setRecommendationsLoading(true);
-      fetch("/api/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: fetchedProfile }),
-      })
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.recommendations) setRecommendations(d.recommendations);
+      // Kick off recommendations + actions in the background after profile is ready
+      if (runRecommendations) {
+        setRecommendationsLoading(true);
+        fetch("/api/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile: fetchedProfile }),
         })
-        .catch(() => setRecommendationsError(true))
-        .finally(() => setRecommendationsLoading(false));
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.recommendations) setRecommendations(d.recommendations);
+          })
+          .catch(() => setRecommendationsError(true))
+          .finally(() => setRecommendationsLoading(false));
+
+        setActionsLoading(true);
+        fetch("/api/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile: fetchedProfile, url }),
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.actions) setActions(d.actions);
+          })
+          .catch(() => {})
+          .finally(() => setActionsLoading(false));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoadingStatus(null);
@@ -161,26 +236,30 @@ export default function Home() {
     }
 
     // ── Step 2: Generate queries + score across LLMs ─────────────────────────
-    setLoadingStatus("Generating customer queries...");
-    try {
-      await new Promise((r) => setTimeout(r, 400));
-      setLoadingStatus("Querying AI models with live web search... (this takes ~30s)");
+    if (runScore) {
+      setLoadingStatus("Generating customer queries...");
+      try {
+        await new Promise((r) => setTimeout(r, 400));
+        setLoadingStatus("Querying AI models with live web search... (this takes ~30s)");
 
-      const res = await fetch("/api/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, profile: fetchedProfile }),
-      });
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        throw new Error(`Scoring error (${res.status}) — check your API keys`);
+        const res = await fetch("/api/score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, profile: fetchedProfile }),
+        });
+        const contentType = res.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          throw new Error(`Scoring error (${res.status}) — check your API keys`);
+        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Scoring failed");
+        setScoreResult(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Scoring failed");
+      } finally {
+        setLoadingStatus(null);
       }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Scoring failed");
-      setScoreResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Scoring failed");
-    } finally {
+    } else {
       setLoadingStatus(null);
     }
   }
@@ -220,22 +299,44 @@ export default function Home() {
           {!submitted ? (
             <form
               onSubmit={handleSubmit}
-              className="mt-8 flex flex-col sm:flex-row gap-3"
+              className="mt-8 flex flex-col gap-3"
             >
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://yourbusiness.com"
-                required
-                className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors whitespace-nowrap"
-              >
-                Analyze →
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://yourbusiness.com"
+                  required
+                  className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors whitespace-nowrap"
+                >
+                  Analyze →
+                </button>
+              </div>
+              <div className="flex items-center gap-5 px-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={runScore}
+                    onChange={(e) => setRunScore(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-500">AI Visibility Score</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={runRecommendations}
+                    onChange={(e) => setRunRecommendations(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-500">Recommendations & Actions</span>
+                </label>
+              </div>
             </form>
           ) : (
             <div className="mt-8 space-y-4 text-left">
@@ -253,6 +354,8 @@ export default function Home() {
                     setRecommendations([]);
                     setRecommendationsLoading(false);
                     setRecommendationsError(false);
+                    setActions([]);
+                    setActionsLoading(false);
                   }}
                   className="text-xs text-blue-400 hover:text-blue-600 whitespace-nowrap"
                 >
@@ -430,6 +533,31 @@ export default function Home() {
                   </div>
                   {recommendations.map((rec, i) => (
                     <RecommendationCard key={i} rec={rec} />
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
+              {profile && (actionsLoading || actions.length > 0) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                        Actions
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Ready-to-use content and fixes for your biggest gaps
+                      </p>
+                    </div>
+                    {actionsLoading && (
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin" />
+                        Generating...
+                      </div>
+                    )}
+                  </div>
+                  {actions.map((action) => (
+                    <ActionCardComponent key={action.id} action={action} />
                   ))}
                 </div>
               )}
