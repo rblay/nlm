@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, PR #11)
+## Current State (as of March 2026, PR #13)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -12,6 +12,9 @@
 - `queryCount` param on `/api/score` (default 3) controls how many queries are run — reduces token burn
 - Anthropic runs sequentially to avoid 50k token/min rate limit; OpenAI + Gemini run in parallel
 - Failed LLM calls show red "error" badge + error message in the debug table
+- `/api/actions` is live — generates copy-paste action cards from detected signal gaps, no LLM calls
+- Frontend: actions section with copy button, impact badges, "template" badge for placeholder content
+- UI checkboxes to selectively run AI Visibility Score and/or Recommendations & Actions
 
 ---
 
@@ -84,20 +87,52 @@
 
 ---
 
-### Step 4: Online Presence Improvement (Post-Demo / Subscription Tier)
+### Step 4: Actions Tab (Demo MVP — copy-paste content for owners)
 
-**4.1 — Integration options (to research and decide)**
+Goal: give business owners ready-to-use content and instructions based on their specific gaps. Only show actions relevant to detected gaps.
+
+**Card anatomy**: title + impact badge (High/Medium/Low) + one-line "why it matters" + copy-paste content block or step-by-step instructions + copy button.
+
+**4.1 ✅ — Zero-LLM actions (generate from `BusinessProfile` data)**
+- Schema.org JSON-LD snippet — fully generatable from name, address, type, hours. Copy-paste into `<head>`
+- Optimised meta description — template filled from business name, type, city, services
+- Optimised title tag — same, templated from profile
+- Google Maps embed code — `<iframe>` snippet generated from Place ID (already available from Places API)
+- Social media bio — short NAP-consistent blurb for each platform, generated from profile
+
+**4.2 ✅ — Template-based actions (personalised, no LLM)**
+- Review response templates — 3-4 variants (positive, neutral, negative) pre-filled with business name
+- GBP first post draft — short Google Business Profile post template, ready to paste
+- Review incentivisation tactics — short instruction card (e.g. "After checkout, ask customers…")
+
+**4.3 ✅ — LLM-generated actions (placeholder for demo, real LLM call later)**
+- Blog post drafts — 2 posts: one "about us / what we do", one "top tips" relevant to business category
+- FAQ page draft — 10 Q&As generated from business type + location
+- About page copy — 2-paragraph "About us" section
+
+**4.4 — Review analysis (nice-to-have, lower priority — post-demo)**
+- Fetch individual review texts from Places API (not currently done — requires additional API call)
+- LLM analysis of recurring themes: positive (reinforce) and negative (operational gaps to address)
+- Output: "Customers frequently mention [theme] — consider addressing this"
+- Inward-facing (operational insight) rather than outward-facing (content to publish)
+- Requires: Places API review text endpoint + one LLM summarisation call
+
+---
+
+### Step 5: Online Presence Improvement (Post-Demo / Subscription Tier)
+
+**5.1 — Integration options (to research and decide)**
 - **Google Business Profile API**: Read/write access to business info, post updates, respond to reviews
 - **Google Analytics / Search Console**: Pull traffic and keyword data to inform content strategy
 - **Website CMS**: Webflow, Squarespace, or WordPress APIs for publishing blog posts and updating metadata
 
-**4.2 — Agent capabilities (ideas)**
+**5.2 — Agent capabilities (ideas)**
 - Weekly blog post generation based on local trends, seasonal hooks, and business keywords
 - Automated response drafts for Google Reviews (owner approves before posting)
 - Monthly "LLM visibility report" comparing score over time
 - One-click apply for Schema markup improvements
 
-**4.3 — Subscription model considerations**
+**5.3 — Subscription model considerations**
 - Free tier: one-time URL scan + score + basic recommendations
 - Paid tier ($X/month): continuous monitoring, automated content actions, integrations
 - Main onboarding friction: Google OAuth for GBP + Analytics access
