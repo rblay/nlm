@@ -1290,7 +1290,7 @@ export default function Home() {
             Translating your business value into AI visibility
           </p>
 
-          <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight" style={{ fontFamily: "var(--font-playfair)" }}>
+          <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight text-left" style={{ fontFamily: "var(--font-playfair)" }}>
             AI is recommending businesses.<br />
             Is yours one of them?
           </h1>
