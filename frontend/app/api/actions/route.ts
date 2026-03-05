@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 import type {
   BusinessProfile,
   ActionCard,
   RecommendationImpact,
   ActionsResponse,
 } from "@/lib/types";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ─── Schema type mapping ──────────────────────────────────────────────────────
 
@@ -190,11 +193,52 @@ To post: Go to your Google Business Profile → "Add update" → paste the text 
   };
 }
 
-function blogPostAction(profile: BusinessProfile): ActionCard {
-  const services = profile.services.slice(0, 3);
-  const serviceList = services.map((s) => `- **${s}**: Add a sentence explaining what makes your ${s} offering stand out.`).join("\n");
+async function blogPostAction(profile: BusinessProfile): Promise<ActionCard> {
+  const base: Omit<ActionCard, "content" | "isPlaceholder"> = {
+    id: "blog-post-intro",
+    title: "Blog post: Introduce your business",
+    whyItMatters:
+      "Blog content is one of the richest signals AI assistants use to understand and recommend businesses. A well-written post that mentions your services, location, and story dramatically improves LLM visibility.",
+    impact: "High",
+    contentType: "markdown",
+  };
 
-  const post = `# Why ${profile.name} Is ${profile.location}'s Go-To ${profile.type.charAt(0).toUpperCase() + profile.type.slice(1)}
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert local SEO content writer. Write in a warm, professional tone that feels authentic to a small business owner. Output only the blog post content in Markdown — no preamble, no commentary.",
+        },
+        {
+          role: "user",
+          content: `Write a 500–800 word blog post for the following local business. The post should introduce the business, highlight what makes it special, mention its key services, and include the business name and location naturally throughout. End with a clear call to action to visit or get in touch.
+
+Do not invent specific people, names, dates, awards, or any facts not present in the information provided below. Only use what is given.
+
+Business name: ${profile.name}
+Type: ${profile.type}
+Location: ${profile.location}
+Description: ${profile.description}
+Services: ${profile.services.join(", ") || "general services"}
+
+Format with a # title, ## subheadings, and a short concluding paragraph with a call to action.`,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 1200,
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim();
+    if (!content) throw new Error("Empty response");
+    return { ...base, content };
+  } catch {
+    // Fallback to template on LLM failure
+    const services = profile.services.slice(0, 3);
+    const serviceList = services.map((s) => `- **${s}**: Add a sentence explaining what makes your ${s} offering stand out.`).join("\n");
+    const content = `# Why ${profile.name} Is ${profile.location}'s Go-To ${profile.type.charAt(0).toUpperCase() + profile.type.slice(1)}
 
 ## Our Story
 ${profile.name} has been serving the ${profile.location} community with passion and dedication. What started as a commitment to [your origin story] has grown into ${profile.location}'s trusted ${profile.type}.
@@ -211,94 +255,124 @@ Unlike other options in ${profile.location}, we focus on delivering a personalis
 We'd love to welcome you to ${profile.name}. Whether you're a first-time visitor or a regular, we're here to [deliver your core value proposition].
 
 *[Add your address, opening hours, and a call-to-action button here]*`;
-
-  return {
-    id: "blog-post-intro",
-    title: "Blog post: Introduce your business",
-    whyItMatters:
-      "Blog content is one of the richest signals AI assistants use to understand and recommend businesses. A well-written post that mentions your services, location, and story dramatically improves LLM visibility.",
-    impact: "High",
-    content: post,
-    contentType: "markdown",
-    isPlaceholder: true,
-  };
+    return { ...base, content, isPlaceholder: true };
+  }
 }
 
-function faqAction(profile: BusinessProfile): ActionCard {
-  const t = profile.type.toLowerCase();
-
-  let faqs: [string, string][];
-
-  if (/gym|fitness|crossfit|pilates|yoga|sports/.test(t)) {
-    faqs = [
-      [`What are the membership options at ${profile.name}?`, `We offer a range of memberships including monthly, quarterly, and annual plans. Visit our website or drop in to speak with our team about what suits you best.`],
-      [`Do you offer personal training?`, `Yes! Our qualified personal trainers can create a programme tailored to your goals. Ask at reception to book a free consultation.`],
-      [`Is ${profile.name} suitable for beginners?`, `Absolutely. We welcome members of all fitness levels and our team is always on hand to help you get started safely.`],
-      [`What are your opening hours?`, `[Add your opening hours here]. Check our Google Business Profile for public holiday hours.`],
-      [`Do I need to book classes in advance?`, `Some classes require booking — check our schedule online or via our app. Drop-in is welcome for gym floor access.`],
-      [`Is there parking available?`, `[Add parking details for ${profile.location} here].`],
-      [`Can I pause my membership?`, `Yes, membership freezes are available in certain circumstances. Contact us directly to discuss your options.`],
-      [`Do you offer a free trial?`, `We offer a free introductory session for new members. Get in touch to arrange yours.`],
-    ];
-  } else if (/restaurant|cafe|bistro|bar|pub|diner|eatery|food/.test(t)) {
-    faqs = [
-      [`Does ${profile.name} take reservations?`, `Yes, we recommend booking in advance, especially on weekends. You can reserve a table via [booking link] or by calling us directly.`],
-      [`Do you cater for dietary requirements?`, `We offer vegetarian, vegan, and gluten-free options. Please let us know about any allergies when booking and our kitchen will accommodate you.`],
-      [`What are your opening hours?`, `[Add your opening hours here]. Check our Google Business Profile for up-to-date hours including public holidays.`],
-      [`Is there parking nearby?`, `[Add parking details for ${profile.location} here].`],
-      [`Do you offer takeaway or delivery?`, `[Add your takeaway/delivery policy here].`],
-      [`Can you host private events or group bookings?`, `Yes! We love hosting private dining events. Contact us at [email/phone] to discuss your requirements.`],
-      [`Is ${profile.name} child-friendly?`, `[Add your children's policy here].`],
-      [`Do you have a loyalty programme?`, `[Add loyalty programme details here, or remove this question if not applicable].`],
-    ];
-  } else {
-    faqs = [
-      [`What does ${profile.name} offer?`, profile.description],
-      [`Where is ${profile.name} located?`, `We're based in ${profile.location}. [Add full address here].`],
-      [`What are your opening hours?`, `[Add your opening hours here]. You can also find them on our Google Business Profile.`],
-      [`How can I get in touch?`, `You can reach us via [email], [phone], or through the contact form on our website.`],
-      [`Do you offer appointments or walk-ins?`, `[Add your booking policy here].`],
-      [`What makes ${profile.name} different?`, `${profile.description.split(".")[0]}. We pride ourselves on [your key differentiator].`],
-      [`Do you offer gift cards or vouchers?`, `[Add gift card policy here].`],
-      [`Is there parking available?`, `[Add parking details for ${profile.location} here].`],
-    ];
-  }
-
-  const faqMarkdown = faqs
-    .map(([q, a]) => `### ${q}\n${a}`)
-    .join("\n\n");
-
-  return {
+async function faqAction(profile: BusinessProfile): Promise<ActionCard> {
+  const base: Omit<ActionCard, "content" | "isPlaceholder"> = {
     id: "faq-draft",
     title: "FAQ page draft",
     whyItMatters:
       "FAQ pages are goldmines for AI assistants — they contain exactly the question-and-answer format LLMs use when responding to customer queries. Adding an FAQ page with relevant questions significantly increases your chance of being cited.",
     impact: "High",
-    content: `# Frequently Asked Questions — ${profile.name}\n\n${faqMarkdown}\n\n---\n*[Review and customise all answers with your specific details before publishing.]*`,
     contentType: "markdown",
-    isPlaceholder: true,
   };
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert local SEO content writer. Write in a warm, helpful tone. Output only the FAQ content in Markdown — no preamble, no commentary.",
+        },
+        {
+          role: "user",
+          content: `Write 10 genuine, specific FAQ questions and answers for the following local business. Questions should reflect what real customers actually ask — about services, booking, location, pricing, and what makes this business special. Ground the answers strictly in the business's actual description and services; do not invent facts, specific people, names, dates, or awards not present in the information provided. Where specific details are unknown (e.g. exact prices, phone number), use a placeholder like [add your price here].
+
+Business name: ${profile.name}
+Type: ${profile.type}
+Location: ${profile.location}
+Description: ${profile.description}
+Services: ${profile.services.join(", ") || "general services"}
+
+Format each entry as:
+### [Question]
+[Answer]`,
+        },
+      ],
+      temperature: 0.6,
+      max_tokens: 1500,
+    });
+
+    const faqContent = completion.choices[0]?.message?.content?.trim();
+    if (!faqContent) throw new Error("Empty response");
+    const content = `# Frequently Asked Questions — ${profile.name}\n\n${faqContent}`;
+    return { ...base, content };
+  } catch {
+    // Fallback to category-based templates on LLM failure
+    const t = profile.type.toLowerCase();
+    let faqs: [string, string][];
+
+    if (/gym|fitness|crossfit|pilates|yoga|sports/.test(t)) {
+      faqs = [
+        [`What are the membership options at ${profile.name}?`, `We offer a range of memberships including monthly, quarterly, and annual plans. Visit our website or drop in to speak with our team about what suits you best.`],
+        [`Do you offer personal training?`, `Yes! Our qualified personal trainers can create a programme tailored to your goals. Ask at reception to book a free consultation.`],
+        [`Is ${profile.name} suitable for beginners?`, `Absolutely. We welcome members of all fitness levels and our team is always on hand to help you get started safely.`],
+        [`What are your opening hours?`, `[Add your opening hours here]. Check our Google Business Profile for public holiday hours.`],
+        [`Do I need to book classes in advance?`, `Some classes require booking — check our schedule online or via our app. Drop-in is welcome for gym floor access.`],
+        [`Is there parking available?`, `[Add parking details for ${profile.location} here].`],
+        [`Can I pause my membership?`, `Yes, membership freezes are available in certain circumstances. Contact us directly to discuss your options.`],
+        [`Do you offer a free trial?`, `We offer a free introductory session for new members. Get in touch to arrange yours.`],
+      ];
+    } else if (/restaurant|cafe|bistro|bar|pub|diner|eatery|food/.test(t)) {
+      faqs = [
+        [`Does ${profile.name} take reservations?`, `Yes, we recommend booking in advance, especially on weekends. You can reserve a table via [booking link] or by calling us directly.`],
+        [`Do you cater for dietary requirements?`, `We offer vegetarian, vegan, and gluten-free options. Please let us know about any allergies when booking and our kitchen will accommodate you.`],
+        [`What are your opening hours?`, `[Add your opening hours here]. Check our Google Business Profile for up-to-date hours including public holidays.`],
+        [`Is there parking nearby?`, `[Add parking details for ${profile.location} here].`],
+        [`Do you offer takeaway or delivery?`, `[Add your takeaway/delivery policy here].`],
+        [`Can you host private events or group bookings?`, `Yes! We love hosting private dining events. Contact us at [email/phone] to discuss your requirements.`],
+        [`Is ${profile.name} child-friendly?`, `[Add your children's policy here].`],
+        [`Do you have a loyalty programme?`, `[Add loyalty programme details here, or remove this question if not applicable].`],
+      ];
+    } else {
+      faqs = [
+        [`What does ${profile.name} offer?`, profile.description],
+        [`Where is ${profile.name} located?`, `We're based in ${profile.location}. [Add full address here].`],
+        [`What are your opening hours?`, `[Add your opening hours here]. You can also find them on our Google Business Profile.`],
+        [`How can I get in touch?`, `You can reach us via [email], [phone], or through the contact form on our website.`],
+        [`Do you offer appointments or walk-ins?`, `[Add your booking policy here].`],
+        [`What makes ${profile.name} different?`, `${profile.description.split(".")[0]}. We pride ourselves on [your key differentiator].`],
+        [`Do you offer gift cards or vouchers?`, `[Add gift card policy here].`],
+        [`Is there parking available?`, `[Add parking details for ${profile.location} here].`],
+      ];
+    }
+
+    const faqMarkdown = faqs.map(([q, a]) => `### ${q}\n${a}`).join("\n\n");
+    const content = `# Frequently Asked Questions — ${profile.name}\n\n${faqMarkdown}\n\n---\n*[Review and customise all answers with your specific details before publishing.]*`;
+    return { ...base, content, isPlaceholder: true };
+  }
 }
 
 // ─── Main generator ───────────────────────────────────────────────────────────
 
-function generateActions(profile: BusinessProfile, url: string): ActionCard[] {
-  const actions: ActionCard[] = [];
+async function generateActions(profile: BusinessProfile, url: string): Promise<ActionCard[]> {
   const { signals } = profile;
 
-  if (!signals.hasSchema) actions.push(schemaAction(profile, url));
-  if (!signals.hasBlog) actions.push(blogPostAction(profile));
-  if (!signals.hasFAQ) actions.push(faqAction(profile));
-  if (!signals.reviewCount || signals.reviewCount < 50) actions.push(reviewIncentiveAction(profile));
-  if (!signals.hasMetaDescription) actions.push(metaDescriptionAction(profile));
-  if (!signals.titleTag) actions.push(titleTagAction(profile));
-  if (signals.hasGoogleBusinessProfile) actions.push(gbpPostAction(profile));
-  if (!signals.reviewCount || signals.reviewCount < 30) actions.push(reviewTemplatesAction(profile));
-  if (signals.socialLinks.length < 2) actions.push(socialBioAction(profile));
-  if (!signals.hasMapsEmbed) actions.push(mapsEmbedAction(profile));
+  // Sync actions (no LLM calls)
+  const syncActions: ActionCard[] = [];
+  if (!signals.hasSchema) syncActions.push(schemaAction(profile, url));
+  if (!signals.reviewCount || signals.reviewCount < 50) syncActions.push(reviewIncentiveAction(profile));
+  if (!signals.hasMetaDescription) syncActions.push(metaDescriptionAction(profile));
+  if (!signals.titleTag) syncActions.push(titleTagAction(profile));
+  if (signals.hasGoogleBusinessProfile) syncActions.push(gbpPostAction(profile));
+  if (!signals.reviewCount || signals.reviewCount < 30) syncActions.push(reviewTemplatesAction(profile));
+  if (signals.socialLinks.length < 2) syncActions.push(socialBioAction(profile));
+  if (!signals.hasMapsEmbed) syncActions.push(mapsEmbedAction(profile));
 
+  // LLM-generated actions — run in parallel
+  const llmActions: ActionCard[] = [];
+  const llmPromises: Promise<ActionCard>[] = [];
+  if (!signals.hasBlog) llmPromises.push(blogPostAction(profile));
+  if (!signals.hasFAQ) llmPromises.push(faqAction(profile));
+  llmActions.push(...(await Promise.all(llmPromises)));
+
+  const all = [...syncActions, ...llmActions];
   const impactOrder: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
-  return actions.sort((a, b) => impactOrder[a.impact] - impactOrder[b.impact]);
+  return all.sort((a, b) => impactOrder[a.impact] - impactOrder[b.impact]);
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -311,7 +385,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "profile and url are required" }, { status: 400 });
     }
 
-    const actions = generateActions(profile as BusinessProfile, url as string);
+    const actions = await generateActions(profile as BusinessProfile, url as string);
     return NextResponse.json({ actions } satisfies ActionsResponse);
   } catch {
     return NextResponse.json({ error: "Failed to generate actions" }, { status: 500 });
