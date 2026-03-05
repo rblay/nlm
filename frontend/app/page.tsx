@@ -980,12 +980,8 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const intentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
-  const [devMode] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev")
-  );
-  const [demoMode] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo")
-  );
+  const [devMode, setDevMode] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
 
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
@@ -1013,6 +1009,12 @@ export default function Home() {
 
   const runScore = testingMode === "all" || testingMode === "score-only";
   const runRecommendations = testingMode === "all" || testingMode === "rec-only";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDemoMode(params.has("demo"));
+    setDevMode(params.has("dev"));
+  }, []);
 
   useEffect(() => {
     if (!carouselRef.current) return;
