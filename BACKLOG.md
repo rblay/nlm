@@ -143,7 +143,8 @@ Goal: give business owners ready-to-use content and instructions based on their 
 **5.0 ✅ — Multi-page shell with header/footer nav**
 - Shared `Header` and `Footer` components added to root layout
 - Pages: LLM Score (`/`), About (`/about`), Pricing (`/pricing`), Careers (`/careers`)
-- Placeholder content on About, Pricing, Careers — to be filled out separately
+- Placeholder content on About, Pricing — to be filled out separately
+- Careers page live with three role listings (Sales, AI Engineer, Product Marketing Manager)
 
 ---
 

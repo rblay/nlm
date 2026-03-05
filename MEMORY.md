@@ -43,7 +43,8 @@
 - **Flip card CSS**: in `globals.css` — `.flip-container`, `.flip-card-inner.is-flipped`, `.flip-card-face`, `.flip-card-back`; overflow-y on inner content divs, not the face
 - **Fake data**: 4 cards — schema (code), blog post (accordion), FAQ (accordion with 8 Q&As), GBP photos (steps); matching 4 recommendations
 - **Playfair Display**: added in `layout.tsx` via `next/font/google`, CSS var `--font-playfair`; use `style={{ fontFamily: "var(--font-playfair)" }}` inline (no Tailwind class)
-- **Multi-page nav**: shared `Header` + `Footer` in `layout.tsx`; pages at `/about`, `/pricing`, `/careers` (placeholders); page.tsx no longer has its own nav/footer
+- **Multi-page nav**: shared `Header` + `Footer` in `layout.tsx`; pages at `/about`, `/pricing`, `/careers`; page.tsx no longer has its own nav/footer
+- **Careers page**: three role cards (Sales, AI Engineer, Product Marketing Manager) — tagline + "We're looking for" bullets; email CTA at bottom (careers@llmrank.ai)
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
 
 ## What's still pending (priority order)
