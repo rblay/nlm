@@ -1291,7 +1291,8 @@ export default function Home() {
           </p>
 
           <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight" style={{ fontFamily: "var(--font-playfair)" }}>
-            AI is recommending businesses. Is yours one of them?
+            AI is recommending businesses.<br />
+            Is yours one of them?
           </h1>
 
           <p className="text-[#6b7a8d] text-lg leading-relaxed">
