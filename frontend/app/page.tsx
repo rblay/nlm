@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { BusinessProfile } from "@/lib/types";
 
 const FAKE_SCORES = {
   overall: 62,
@@ -38,18 +39,32 @@ function ScoreLabel(score: number): { label: string; color: string } {
 export default function Home() {
   const [url, setUrl] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
     setSubmitted(true);
+    setLoading(true);
+    setProfile(null);
+    setError(null);
 
-    // Fire-and-forget: send URL to backend for LLM analysis (logged server-side only)
-    fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    }).catch(() => {/* silent — analysis is background only */});
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Analysis failed");
+      setProfile(data.profile);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -109,51 +124,131 @@ export default function Home() {
                 <span className="text-blue-500 text-base">🔗</span>
                 <p className="text-sm text-blue-700 break-all flex-1">{url}</p>
                 <button
-                  onClick={() => setSubmitted(false)}
+                  onClick={() => { setSubmitted(false); setProfile(null); setError(null); }}
                   className="text-xs text-blue-400 hover:text-blue-600 whitespace-nowrap"
                 >
                   Change
                 </button>
               </div>
 
+              {/* Loading state */}
+              {loading && (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-8 flex flex-col items-center gap-3 text-center">
+                  <div className="h-6 w-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                  <p className="text-sm text-gray-500">Extracting business info...</p>
+                </div>
+              )}
+
+              {/* Error state */}
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-4">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
+              {/* Business profile card */}
+              {profile && (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                      Business Detected
+                    </p>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900">{profile.name}</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                          {profile.type && (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium capitalize">
+                              {profile.type}
+                            </span>
+                          )}
+                          {profile.location && (
+                            <span className="text-xs text-gray-400">{profile.location}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-3 leading-relaxed">{profile.description}</p>
+                  </div>
+
+                  {profile.services.length > 0 && (
+                    <div className="px-6 py-4 border-b border-gray-100">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Services</p>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.services.map((s) => (
+                          <span key={s} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-6 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Signals detected</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Schema markup", active: profile.signals.hasSchema },
+                        { label: "Blog / News", active: profile.signals.hasBlog },
+                        { label: "Social links", active: profile.signals.socialLinks.length > 0 },
+                        { label: "Google Maps", active: profile.signals.hasMapsEmbed },
+                      ].map(({ label, active }) => (
+                        <span
+                          key={label}
+                          className={`text-xs px-2 py-1 rounded-md font-medium ${
+                            active
+                              ? "bg-green-50 text-green-700"
+                              : "bg-gray-50 text-gray-400"
+                          }`}
+                        >
+                          {active ? "✓" : "✗"} {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Score card */}
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                      LLM Relevance Score
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">Fake data · analysis pipeline coming soon</p>
+              {profile && (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                        LLM Relevance Score
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">Fake data · scoring pipeline coming soon</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-gray-900">
+                        {FAKE_SCORES.overall}
+                        <span className="text-base font-normal text-gray-400">/100</span>
+                      </p>
+                      <p className={`text-xs font-semibold ${ScoreLabel(FAKE_SCORES.overall).color}`}>
+                        {ScoreLabel(FAKE_SCORES.overall).label}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-gray-900">
-                      {FAKE_SCORES.overall}
-                      <span className="text-base font-normal text-gray-400">/100</span>
-                    </p>
-                    <p className={`text-xs font-semibold ${ScoreLabel(FAKE_SCORES.overall).color}`}>
-                      {ScoreLabel(FAKE_SCORES.overall).label}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Overall bar */}
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-blue-600 transition-all duration-700"
-                      style={{ width: `${FAKE_SCORES.overall}%` }}
-                    />
+                  {/* Overall bar */}
+                  <div className="px-6 py-4 border-b border-gray-100">
+                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-blue-600 transition-all duration-700"
+                        style={{ width: `${FAKE_SCORES.overall}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Per-model breakdown */}
+                  <div className="px-6 py-4 space-y-3">
+                    {FAKE_SCORES.breakdown.map(({ model, score, color }) => (
+                      <ScoreBar key={model} label={model} score={score} color={color} />
+                    ))}
                   </div>
                 </div>
-
-                {/* Per-model breakdown */}
-                <div className="px-6 py-4 space-y-3">
-                  {FAKE_SCORES.breakdown.map(({ model, score, color }) => (
-                    <ScoreBar key={model} label={model} score={score} color={color} />
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
