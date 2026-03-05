@@ -55,6 +55,7 @@ export interface ScoreResult {
   intents: string[];       // common customer intents for this business type (step 1)
   queries: string[];       // the generated queries shown in the UI (step 2)
   debug: DebugEntry[];
+  summary: string;         // 100-150 word plain-English narrative of hits and misses by intent bucket
 }
 
 // ─── Recommendations pipeline (owned by recommendations person) ───────────────
