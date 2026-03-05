@@ -1,20 +1,19 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, PR #13)
+## Current State (as of March 2026, PR #15 + branch feature/improve-query-generation)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
 - Observable signals enriched via Google Places API: GBP confirmed, real review count/rating, opening hours, photo count
+- `/api/score` generates 12 customer intents across 9 GEO buckets → 12 queries → queries all 3 LLMs with live web search → per-LLM scores + plain-English summary
+- Anthropic: batched 3-at-a-time with 2s delay + retry-with-backoff on 429; OpenAI + Gemini run in parallel
+- Detection: fuzzy alias matching — strips business-type suffixes, checks domain stem and multi-token brand combos
 - `/api/recommend` is live — gap-based recommendations grounded in signals, ordered by impact (High/Medium/Low)
-- `/api/score` is live — two-step intent-driven query generation + real LLM queries with live web search
-- Frontend shows: business profile card, signals grid, real per-LLM scores, recommendation cards, scoring debug panel
-- All three LLMs working: OpenAI (gpt-4o-mini), Anthropic (claude-haiku-4-5), Google (gemini-2.5-flash)
-- `queryCount` param on `/api/score` (default 3) controls how many queries are run — reduces token burn
-- Anthropic runs sequentially to avoid 50k token/min rate limit; OpenAI + Gemini run in parallel
-- Failed LLM calls show red "error" badge + error message in the debug table
 - `/api/actions` is live — generates copy-paste action cards from detected signal gaps, no LLM calls
-- Frontend: actions section with copy button, impact badges, "template" badge for placeholder content
-- UI checkboxes to selectively run AI Visibility Score and/or Recommendations & Actions
+- Frontend: business profile card, signals grid, per-LLM score bars, plain-English score summary, recommendation cards, action cards, debug panel
+- Step-by-step progress modal shows pipeline status (extract → intents → ChatGPT/Claude/Gemini → recommendations → actions)
+- Testing mode dropdown: All / LLM Score Only / Recommendations + Actions Only / Fake Data
+- Configurable queries per LLM (1–12): all 12 queries generated, top N sent to LLMs
 
 ---
 
@@ -40,17 +39,17 @@
 
 **1.4 ✅ — Query LLMs and detect business mentions**
 - All three LLMs queried with live web search enabled
-- OpenAI: gpt-4o-mini via Responses API + web_search tool (all 12 in parallel)
+- OpenAI: gpt-4o-mini via Responses API + web_search tool (all queries in parallel)
 - Anthropic: claude-haiku-4-5 + web_search_20250305 — batched 3-at-a-time with 2s delay + retry-with-backoff on 429
-- Google: gemini-2.5-flash via @google/genai SDK + googleSearch grounding (all 12 in parallel)
-- Detection: fuzzy alias matching — strips business-type suffixes to find short brand name (e.g. "Revival PT Studio" → "revival"), checks domain stem, multi-token combos; case-insensitive
+- Google: gemini-2.5-flash via @google/genai SDK + googleSearch grounding (all queries in parallel)
+- Detection: fuzzy alias matching — strips business-type suffixes to find short brand name, checks domain stem, multi-token combos; case-insensitive
 - Score per LLM = mentions / total queries × 100; overall = average across LLMs
-- `queryCount` param (default 3) controls query volume; failed calls surface error in debug table
+- `queryCount` param (1–12, default 12): all intents/queries generated, top N sent to LLMs
 
 **1.5 ✅ — Wire real scores to the UI**
-- Real scores from `/api/score` replace hardcoded `FAKE_SCORES`
-- Two-step loading state: "Extracting business info..." → "Querying AI models with live web search..."
+- Real scores from `/api/score` replace hardcoded values
 - Per-LLM progress bars with mention counts displayed
+- Plain-English score summary by intent bucket (PR #15)
 
 **1.6 — Handle errors gracefully**
 - If a URL is unreachable, show a friendly error and let the user try again
@@ -89,6 +88,12 @@
 - Collapsible panel showing common customer intents + generated queries side by side
 - Table: one row per (query, LLM) — columns: Query | LLM | Mentioned (yes/no) | Response (expandable) | Latency
 
+**3.3 — Move testing/debug tools to a separate tab before demo**
+- Testing mode dropdown (All / Score Only / Rec Only / Fake Data) and query count input are currently shown on the main input form — fine for development, not appropriate for a real user
+- Move these controls (+ the debug panel) to a dedicated "Developer" or "Debug" tab, hidden by default or behind a toggle
+- Main user flow should show only the URL input and Analyze button
+- Priority: must be done before any external demo
+
 ---
 
 ### Step 4: Actions Tab (Demo MVP — copy-paste content for owners)
@@ -123,23 +128,48 @@ Goal: give business owners ready-to-use content and instructions based on their 
 
 ---
 
-### Step 5: Online Presence Improvement (Post-Demo / Subscription Tier)
+### Step 5: UX Polish (pre-demo)
 
-**5.1 — Integration options (to research and decide)**
+**5.1 — Sequential loading steps in the user-facing flow**
+- Currently recommendations and actions are fetched in parallel with scoring (an implementation detail that saves time but leaks internal architecture)
+- In the final demo flow, the progress modal should show steps in strict sequence: Extract → Intents → ChatGPT → Claude → Gemini → Recommendations → Actions
+- Recommendations/actions fetch should only start after scoring completes (or at least the modal should not reveal they ran in parallel)
+- Scoring step is already the bottleneck (~30–60s), so sequential UX adds negligible real-world time
+
+**5.2 — Error handling improvements (1.6 continuation)**
+- URL unreachable: friendly message + retry prompt
+- LLM timeout: show partial results with a warning
+- Vercel function timeout risk (~60s): mitigate with SSE or chunked responses if needed
+
+---
+
+### Step 6: Online Presence Improvement (Post-Demo / Subscription Tier)
+
+**6.1 — Integration options (to research and decide)**
 - **Google Business Profile API**: Read/write access to business info, post updates, respond to reviews
 - **Google Analytics / Search Console**: Pull traffic and keyword data to inform content strategy
 - **Website CMS**: Webflow, Squarespace, or WordPress APIs for publishing blog posts and updating metadata
 
-**5.2 — Agent capabilities (ideas)**
+**6.2 — Agent capabilities (ideas)**
 - Weekly blog post generation based on local trends, seasonal hooks, and business keywords
 - Automated response drafts for Google Reviews (owner approves before posting)
 - Monthly "LLM visibility report" comparing score over time
 - One-click apply for Schema markup improvements
 
-**5.3 — Subscription model considerations**
+**6.3 — Subscription model considerations**
 - Free tier: one-time URL scan + score + basic recommendations
 - Paid tier ($X/month): continuous monitoring, automated content actions, integrations
 - Main onboarding friction: Google OAuth for GBP + Analytics access
+
+---
+
+## Documentation
+
+**README overhaul (pre-submission)**
+- Current README is a placeholder — needs to become a readable technical overview for graders
+- Should cover: what the product does and why, system architecture diagram or description, tech stack and key design decisions, how to run locally, API route reference, known limitations and next steps
+- Audience: technical graders who will read the code — the README is their entry point
+- Priority: before final submission, not before demo
 
 ---
 
