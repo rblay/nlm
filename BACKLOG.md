@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, PR #6)
+## Current State (as of March 2026, PR #8)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
