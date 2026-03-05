@@ -73,6 +73,66 @@ const PROBLEM_DICTS: Record<BusinessCategory, string[]> = {
   ],
 };
 
+const CITY_WIDE_TERMS = [
+  "london",
+  "greater london",
+  "central london",
+  "east london",
+  "west london",
+  "north london",
+  "south london",
+] as const;
+
+function extractDistrictHint(location: string): string | null {
+  const parts = location
+    .split(/[,/;|]/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  for (const part of parts) {
+    const normalized = part.toLowerCase().replace(/\s+/g, " ").trim();
+    if (
+      CITY_WIDE_TERMS.includes(normalized as (typeof CITY_WIDE_TERMS)[number]) ||
+      normalized === "uk" ||
+      normalized === "united kingdom" ||
+      normalized === "england"
+    ) {
+      continue;
+    }
+    if (/\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/i.test(normalized)) continue; // skip postcodes
+    return part;
+  }
+
+  return null;
+}
+
+function isCityWideQuery(query: string): boolean {
+  return /\b(?:greater\s+)?london\b/i.test(query) || /\b(?:east|west|north|south|central)\s+london\b/i.test(query);
+}
+
+function enforceDistrictLevelQueries(queries: string[], districtHint: string | null): string[] {
+  return queries.map((query) => {
+    if (!isCityWideQuery(query)) return query;
+
+    let updated = query;
+    if (districtHint) {
+      updated = updated
+        .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, `$1 ${districtHint}`)
+        .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, `$1 ${districtHint}`)
+        .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, districtHint)
+        .replace(/\b(?:greater\s+)?london\b/gi, districtHint);
+    } else {
+      updated = updated
+        .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, "")
+        .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, "")
+        .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, "")
+        .replace(/\b(?:greater\s+)?london\b/gi, "");
+    }
+
+    return updated.replace(/\s{2,}/g, " ").trim();
+  });
+}
+
 // ─── 1.3 Step 1: Generate intents spanning the 9 GEO intent buckets ──────────
 
 async function generateIntents(profile: BusinessProfile): Promise<string[]> {
@@ -137,10 +197,13 @@ You are given a list of customer intents spanning different search motivations. 
 
 Rules:
 1. NEVER include the business name in any query. These are pure discovery queries.
-2. If the business has multiple locations across different areas, anchor queries to specific neighbourhoods or areas (e.g. "boxing classes in East London", "best gyms in Notting Hill") — do NOT use proximity phrasing like "near me" or "near [postcode]".
-3. If the business appears to have a single location, you may use area-specific phrasing (e.g. "personal trainers in Hammersmith").
-4. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
-5. Make queries sound natural — like real things people type into ChatGPT or Google.
+2. Geographic scope MUST be district/borough/neighbourhood level at most (e.g. "Soho", "Hammersmith", "South Kensington", "Shoreditch").
+3. NEVER use city-wide or region-wide phrasing like "London", "Greater London", "West London", "East London", "Central London", "North London", or "South London".
+4. If the business has multiple locations, anchor each query to a specific district/borough/neighbourhood — do NOT use proximity phrasing like "near me" or "near [postcode]".
+5. If the business appears to have a single location, keep it specific to that district/borough/neighbourhood (e.g. "personal trainers in Hammersmith").
+6. If you cannot infer a specific district/borough/neighbourhood, prefer location-neutral phrasing over city-wide phrasing.
+7. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
+8. Make queries sound natural — like real things people type into ChatGPT or Google.
 
 Return a JSON object with a single key "queries" containing an array of exactly 12 strings, one per intent.`,
       },
@@ -158,7 +221,9 @@ ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
     max_tokens: 700,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
-  return Array.isArray(parsed.queries) ? parsed.queries : [];
+  const queries = Array.isArray(parsed.queries) ? parsed.queries : [];
+  const districtHint = extractDistrictHint(profile.location);
+  return enforceDistrictLevelQueries(queries, districtHint);
 }
 
 // ─── 1.4: Query each LLM with web search and return raw response + latency ────

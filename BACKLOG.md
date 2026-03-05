@@ -6,6 +6,7 @@
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
 - Observable signals enriched via Google Places API: GBP confirmed, real review count/rating, opening hours, photo count
 - `/api/score` generates 12 customer intents across 9 GEO buckets → 12 queries → queries all 3 LLMs with live web search → per-LLM scores + plain-English summary
+- Query geo scope is now capped at district/borough/neighbourhood level (e.g. Soho, Hammersmith, Shoreditch); city-wide phrasing like "London" / "West London" is disallowed
 - Anthropic: batched 3-at-a-time with 2s delay + retry-with-backoff on 429; OpenAI + Gemini run in parallel
 - Detection: fuzzy alias matching — strips business-type suffixes, checks domain stem and multi-token brand combos
 - `/api/recommend` is live — gap-based recommendations grounded in signals, ordered by impact (High/Medium/Low)
@@ -35,6 +36,7 @@
 - Category detection (fitness / restaurant / beauty / other) feeds curated problem dictionaries for Problem-based bucket
 - Intents grounded in actual business description + services (constraints and problems never invented)
 - Queries never include the business name (pure discovery test); area-anchored for multi-location businesses; goal-first for problem/persona intents
+- Query locations are constrained to district/borough/neighbourhood level; generation prompt forbids city-wide regions and a post-processing guard rewrites/strips London-wide phrasing
 - Intents and queries both returned in `ScoreResult` and shown in the debug panel
 
 **1.4 ✅ — Query LLMs and detect business mentions**
