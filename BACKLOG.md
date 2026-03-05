@@ -50,6 +50,7 @@
 - Real scores from `/api/score` replace hardcoded values
 - Per-LLM progress bars with mention counts displayed
 - Plain-English score summary by intent bucket (PR #15)
+- Step-by-step progress modal replaces simple loading spinner; tracks each pipeline stage with live status
 
 **1.6 — Handle errors gracefully**
 - If a URL is unreachable, show a friendly error and let the user try again
@@ -82,9 +83,7 @@
 
 ### Step 3: Debug Tab (Developer View)
 
-**3.1 ✅ — Raw profile debug panel** (collapsible JSON — already shipped)
-
-**3.2 ✅ — Scoring debug table**
+**3.1 ✅ — Scoring debug table**
 - Collapsible panel showing common customer intents + generated queries side by side
 - Table: one row per (query, LLM) — columns: Query | LLM | Mentioned (yes/no) | Response (expandable) | Latency
 
@@ -114,10 +113,18 @@ Goal: give business owners ready-to-use content and instructions based on their 
 - GBP first post draft — short Google Business Profile post template, ready to paste
 - Review incentivisation tactics — short instruction card (e.g. "After checkout, ask customers…")
 
-**4.3 ✅ — LLM-generated actions (placeholder for demo, real LLM call later)**
-- Blog post drafts — 2 posts: one "about us / what we do", one "top tips" relevant to business category
-- FAQ page draft — 10 Q&As generated from business type + location
-- About page copy — 2-paragraph "About us" section
+**4.3 ✅ — LLM-generated action cards (shipped as template placeholders)**
+- Blog post drafts, FAQ page, and About page copy are currently static templates filled with business name/type/location
+- Cards are marked with a "template" badge in the UI so the distinction is clear
+- Real content requires a live LLM call per card (see 4.5)
+
+**4.5 — Replace placeholder action content with real LLM-generated copy**
+- Blog post drafts — call GPT-4o-mini with business profile + category to write 2 full posts (500–800 words each)
+- FAQ page — generate 10 genuine Q&As grounded in the business's actual services and location
+- About page copy — 2-paragraph "About us" written in the business's voice
+- Each card should be generated on-demand (lazy) or as part of the `/api/actions` route
+- Remove "template" badge once real content is live
+- Priority: nice-to-have for demo; required for any real user-facing release
 
 **4.4 — Review analysis (nice-to-have, lower priority — post-demo)**
 - Fetch individual review texts from Places API (not currently done — requires additional API call)
