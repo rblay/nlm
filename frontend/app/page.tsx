@@ -510,14 +510,16 @@ export default function Home() {
                                   <td className="px-4 py-2 text-gray-600 max-w-xs truncate">{entry.query}</td>
                                   <td className="px-4 py-2 text-gray-500">{meta.label}</td>
                                   <td className="px-4 py-2">
-                                    {entry.mentioned ? (
+                                    {entry.error ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium">error</span>
+                                    ) : entry.mentioned ? (
                                       <span className="px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium">yes</span>
                                     ) : (
                                       <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">no</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-2 text-gray-400 font-mono">
-                                    {entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
+                                    {entry.error ? "—" : entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
                                   </td>
                                   <td className="px-4 py-2 text-gray-400">{isExpanded ? "▲" : "▼"}</td>
                                 </tr>

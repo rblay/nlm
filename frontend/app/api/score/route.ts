@@ -16,7 +16,7 @@ const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
 // ─── 1.3 Step 1: Identify the most common customer intents for this business type
 
-async function generateIntents(businessType: string): Promise<string[]> {
+async function generateIntents(businessType: string, count: number): Promise<string[]> {
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -25,9 +25,9 @@ async function generateIntents(businessType: string): Promise<string[]> {
         role: "system",
         content: `You are an expert in consumer search behaviour. Your job is to identify the most common things potential customers want to know when searching for a local business of a given type.
 
-Return the 8 most frequently searched intents — ordered from most to least common. Each intent should be a short phrase describing what the customer wants to find out (e.g. "membership prices", "class timetable", "free trial availability").
+Return the ${count} most frequently searched intents — ordered from most to least common. Each intent should be a short phrase describing what the customer wants to find out (e.g. "membership prices", "class timetable", "free trial availability").
 
-Return a JSON object with a single key "intents" containing an array of exactly 8 strings.`,
+Return a JSON object with a single key "intents" containing an array of exactly ${count} strings.`,
       },
       {
         role: "user",
@@ -46,6 +46,7 @@ async function generateQueries(
   profile: BusinessProfile,
   intents: string[]
 ): Promise<string[]> {
+  const count = intents.length;
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -62,7 +63,7 @@ Rules:
 3. If the business appears to have a single location, you may occasionally use proximity phrasing (e.g. "gyms near Hammersmith").
 4. Make queries sound natural — like real things people type into ChatGPT or Google.
 
-Return a JSON object with a single key "queries" containing an array of exactly 8 strings, one per intent.`,
+Return a JSON object with a single key "queries" containing an array of exactly ${count} strings, one per intent.`,
       },
       {
         role: "user",
@@ -106,7 +107,7 @@ async function queryAnthropic(
   // web_search_20250305 is a server-side tool — Anthropic manages the search loop
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5",
-    max_tokens: 1024,
+    max_tokens: 4096,
     tools: [{ name: "web_search", type: "web_search_20250305" }],
     messages: [{ role: "user", content: query }],
   });
@@ -160,7 +161,7 @@ function mentionsBusiness(
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { url, profile } = body as { url: string; profile: BusinessProfile };
+  const { url, profile, queryCount = 3 } = body as { url: string; profile: BusinessProfile; queryCount?: number };
 
   if (!url || !profile) {
     return NextResponse.json(
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
   // 1.3 Step 1 — identify common customer intents for this business type
   let intents: string[];
   try {
-    intents = await generateIntents(profile.type);
+    intents = await generateIntents(profile.type, queryCount);
   } catch (err) {
     console.error("[score] Intent generation failed:", err);
     return NextResponse.json(
@@ -242,6 +243,7 @@ export async function POST(request: NextRequest) {
             response: "",
             mentioned: false,
             latencyMs: 0,
+            error: true,
           });
         }
       }
