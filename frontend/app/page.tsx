@@ -1,24 +1,54 @@
 "use client";
 
-import { useState } from "react";
-import type { BusinessProfile, Recommendation, RecommendationImpact } from "@/lib/types";
+import React, { useState } from "react";
+import type {
+  BusinessProfile,
+  Recommendation,
+  RecommendationImpact,
+  ScoreResult,
+  LLMProvider,
+} from "@/lib/types";
 
-const FAKE_SCORES = {
-  overall: 62,
-  breakdown: [
-    { model: "ChatGPT", score: 71, color: "bg-green-500" },
-    { model: "Claude", score: 58, color: "bg-blue-500" },
-    { model: "Gemini", score: 55, color: "bg-yellow-500" },
-    { model: "Perplexity", score: 64, color: "bg-purple-500" },
-  ],
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const LLM_META: Record<LLMProvider, { label: string; color: string }> = {
+  openai: { label: "ChatGPT", color: "bg-green-500" },
+  anthropic: { label: "Claude", color: "bg-blue-500" },
+  gemini: { label: "Gemini", color: "bg-yellow-500" },
 };
 
-function ScoreBar({ label, score, color }: { label: string; score: number; color: string }) {
+function scoreLabel(score: number): { label: string; color: string } {
+  if (score >= 80) return { label: "Excellent", color: "text-green-600" };
+  if (score >= 60) return { label: "Good", color: "text-yellow-600" };
+  if (score >= 40) return { label: "Fair", color: "text-orange-500" };
+  return { label: "Poor", color: "text-red-500" };
+}
+
+function ScoreBar({
+  label,
+  score,
+  color,
+  mentions,
+  total,
+}: {
+  label: string;
+  score: number;
+  color: string;
+  mentions?: number;
+  total?: number;
+}) {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs text-gray-500">
         <span>{label}</span>
-        <span className="font-medium text-gray-700">{score}/100</span>
+        <span className="font-medium text-gray-700">
+          {score}/100
+          {mentions !== undefined && total !== undefined && (
+            <span className="text-gray-400 font-normal ml-1">
+              ({mentions}/{total} queries)
+            </span>
+          )}
+        </span>
       </div>
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
         <div
@@ -56,34 +86,46 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   );
 }
 
-function ScoreLabel(score: number): { label: string; color: string } {
-  if (score >= 80) return { label: "Excellent", color: "text-green-600" };
-  if (score >= 60) return { label: "Fair", color: "text-yellow-600" };
-  return { label: "Poor", color: "text-red-500" };
-}
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const [url, setUrl] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState(false);
 
+  function toggleRow(key: string) {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
+
     setSubmitted(true);
-    setLoading(true);
     setProfile(null);
+    setScoreResult(null);
     setError(null);
+    setDebugOpen(false);
+    setExpandedRows(new Set());
     setRecommendations([]);
     setRecommendationsLoading(false);
     setRecommendationsError(false);
 
+    // ── Step 1: Extract business profile ────────────────────────────────────
+    setLoadingStatus("Extracting business info...");
+    let fetchedProfile: BusinessProfile;
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -96,14 +138,15 @@ export default function Home() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Analysis failed");
-      setProfile(data.profile);
+      fetchedProfile = data.profile;
+      setProfile(fetchedProfile);
 
       // Kick off recommendations in the background after profile is ready
       setRecommendationsLoading(true);
       fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: data.profile }),
+        body: JSON.stringify({ profile: fetchedProfile }),
       })
         .then((r) => r.json())
         .then((d) => {
@@ -113,10 +156,36 @@ export default function Home() {
         .finally(() => setRecommendationsLoading(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoadingStatus(null);
+      return;
+    }
+
+    // ── Step 2: Generate queries + score across LLMs ─────────────────────────
+    setLoadingStatus("Generating customer queries...");
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      setLoadingStatus("Querying AI models with live web search... (this takes ~30s)");
+
+      const res = await fetch("/api/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, profile: fetchedProfile }),
+      });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Scoring error (${res.status}) — check your API keys`);
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Scoring failed");
+      setScoreResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Scoring failed");
     } finally {
-      setLoading(false);
+      setLoadingStatus(null);
     }
   }
+
+  const isLoading = loadingStatus !== null;
 
   return (
     <main className="min-h-screen bg-white flex flex-col">
@@ -170,12 +239,21 @@ export default function Home() {
             </form>
           ) : (
             <div className="mt-8 space-y-4 text-left">
-              {/* URL confirmed */}
+              {/* URL chip */}
               <div className="px-4 py-3 rounded-lg border border-blue-100 bg-blue-50 flex items-center gap-3">
                 <span className="text-blue-500 text-base">🔗</span>
                 <p className="text-sm text-blue-700 break-all flex-1">{url}</p>
                 <button
-                  onClick={() => { setSubmitted(false); setProfile(null); setError(null); setRecommendations([]); setRecommendationsLoading(false); setRecommendationsError(false); }}
+                  onClick={() => {
+                    setSubmitted(false);
+                    setProfile(null);
+                    setScoreResult(null);
+                    setError(null);
+                    setLoadingStatus(null);
+                    setRecommendations([]);
+                    setRecommendationsLoading(false);
+                    setRecommendationsError(false);
+                  }}
                   className="text-xs text-blue-400 hover:text-blue-600 whitespace-nowrap"
                 >
                   Change
@@ -183,14 +261,14 @@ export default function Home() {
               </div>
 
               {/* Loading state */}
-              {loading && (
+              {isLoading && (
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-8 flex flex-col items-center gap-3 text-center">
                   <div className="h-6 w-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
-                  <p className="text-sm text-gray-500">Extracting business info...</p>
+                  <p className="text-sm text-gray-500">{loadingStatus}</p>
                 </div>
               )}
 
-              {/* Error state */}
+              {/* Error */}
               {error && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-4">
                   <p className="text-sm text-red-600">{error}</p>
@@ -206,7 +284,9 @@ export default function Home() {
                     </p>
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-bold text-gray-900">{profile.name}</h2>
+                        <h2 className="text-lg font-bold text-gray-900">
+                          {profile.name}
+                        </h2>
                         <div className="flex items-center gap-2 mt-1">
                           {profile.type && (
                             <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium capitalize">
@@ -214,20 +294,29 @@ export default function Home() {
                             </span>
                           )}
                           {profile.location && (
-                            <span className="text-xs text-gray-400">{profile.location}</span>
+                            <span className="text-xs text-gray-400">
+                              {profile.location}
+                            </span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mt-3 leading-relaxed">{profile.description}</p>
+                    <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+                      {profile.description}
+                    </p>
                   </div>
 
                   {profile.services.length > 0 && (
                     <div className="px-6 py-4 border-b border-gray-100">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Services</p>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                        Services
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {profile.services.map((s) => (
-                          <span key={s} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md">
+                          <span
+                            key={s}
+                            className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md"
+                          >
                             {s}
                           </span>
                         ))}
@@ -236,7 +325,9 @@ export default function Home() {
                   )}
 
                   <div className="px-6 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Signals detected</p>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                      Signals detected
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {[
                         { label: "Title tag", active: !!profile.signals.titleTag },
@@ -268,25 +359,57 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Debug panel */}
-              {profile && (
-                <div className="rounded-xl border border-gray-200 overflow-hidden">
-                  <button
-                    onClick={() => setDebugOpen((o) => !o)}
-                    className="w-full px-6 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
-                    <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">Debug — Raw Profile</span>
-                    <span className="text-xs text-gray-400">{debugOpen ? "▲ hide" : "▼ show"}</span>
-                  </button>
-                  {debugOpen && (
-                    <pre className="px-6 py-4 text-xs text-gray-600 bg-white overflow-x-auto leading-relaxed">
-                      {JSON.stringify(profile, null, 2)}
-                    </pre>
-                  )}
+              {/* Score card — real data */}
+              {scoreResult && (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                        LLM Visibility Score
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Based on {scoreResult.queries.length} queries across 3 AI models
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-gray-900">
+                        {scoreResult.overallScore}
+                        <span className="text-base font-normal text-gray-400">/100</span>
+                      </p>
+                      <p className={`text-xs font-semibold ${scoreLabel(scoreResult.overallScore).color}`}>
+                        {scoreLabel(scoreResult.overallScore).label}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 border-b border-gray-100">
+                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-blue-600 transition-all duration-700"
+                        style={{ width: `${scoreResult.overallScore}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 space-y-3">
+                    {scoreResult.perLLM.map((s) => {
+                      const meta = LLM_META[s.llm];
+                      return (
+                        <ScoreBar
+                          key={s.llm}
+                          label={meta.label}
+                          score={s.score}
+                          color={meta.color}
+                          mentions={s.mentions}
+                          total={s.totalQueries}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {/* Recommendations section */}
+              {/* Recommendations */}
               {profile && recommendationsError && (
                 <div className="rounded-xl border border-red-100 bg-red-50 px-5 py-3">
                   <p className="text-xs text-red-500">Could not generate recommendations — check your OPENAI_API_KEY.</p>
@@ -311,44 +434,107 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Score card */}
-              {profile && (
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                  {/* Header */}
-                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                        LLM Relevance Score
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">Fake data · scoring pipeline coming soon</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold text-gray-900">
-                        {FAKE_SCORES.overall}
-                        <span className="text-base font-normal text-gray-400">/100</span>
-                      </p>
-                      <p className={`text-xs font-semibold ${ScoreLabel(FAKE_SCORES.overall).color}`}>
-                        {ScoreLabel(FAKE_SCORES.overall).label}
-                      </p>
-                    </div>
-                  </div>
+              {/* Debug panel */}
+              {scoreResult && (
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    onClick={() => setDebugOpen((o) => !o)}
+                    className="w-full px-6 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
+                    <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">
+                      Debug — Query × LLM Results
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {debugOpen ? "▲ hide" : "▼ show"}
+                    </span>
+                  </button>
 
-                  {/* Overall bar */}
-                  <div className="px-6 py-4 border-b border-gray-100">
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-blue-600 transition-all duration-700"
-                        style={{ width: `${FAKE_SCORES.overall}%` }}
-                      />
-                    </div>
-                  </div>
+                  {debugOpen && (
+                    <div className="overflow-x-auto">
+                      {/* Intents + Queries side by side */}
+                      <div className="px-6 py-4 border-b border-gray-100 bg-white grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                            Common Customer Intents
+                          </p>
+                          <ol className="space-y-1">
+                            {scoreResult.intents.map((intent, i) => (
+                              <li key={i} className="text-xs text-gray-500">
+                                <span className="font-mono text-gray-300 mr-2">
+                                  {String(i + 1).padStart(2, "0")}
+                                </span>
+                                {intent}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                            Generated Queries
+                          </p>
+                          <ol className="space-y-1">
+                            {scoreResult.queries.map((q, i) => (
+                              <li key={i} className="text-xs text-gray-600">
+                                <span className="font-mono text-gray-300 mr-2">
+                                  {String(i + 1).padStart(2, "0")}
+                                </span>
+                                {q}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      </div>
 
-                  {/* Per-model breakdown */}
-                  <div className="px-6 py-4 space-y-3">
-                    {FAKE_SCORES.breakdown.map(({ model, score, color }) => (
-                      <ScoreBar key={model} label={model} score={score} color={color} />
-                    ))}
-                  </div>
+                      {/* Results table */}
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="text-left px-4 py-2 text-gray-400 font-medium w-1/2">Query</th>
+                            <th className="text-left px-4 py-2 text-gray-400 font-medium">LLM</th>
+                            <th className="text-left px-4 py-2 text-gray-400 font-medium">Mentioned</th>
+                            <th className="text-left px-4 py-2 text-gray-400 font-medium">Latency</th>
+                            <th className="px-4 py-2" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scoreResult.debug.map((entry, i) => {
+                            const rowKey = `${i}-${entry.llm}`;
+                            const isExpanded = expandedRows.has(rowKey);
+                            const meta = LLM_META[entry.llm];
+                            return (
+                              <React.Fragment key={rowKey}>
+                                <tr
+                                  className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                                  onClick={() => toggleRow(rowKey)}
+                                >
+                                  <td className="px-4 py-2 text-gray-600 max-w-xs truncate">{entry.query}</td>
+                                  <td className="px-4 py-2 text-gray-500">{meta.label}</td>
+                                  <td className="px-4 py-2">
+                                    {entry.mentioned ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium">yes</span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">no</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2 text-gray-400 font-mono">
+                                    {entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
+                                  </td>
+                                  <td className="px-4 py-2 text-gray-400">{isExpanded ? "▲" : "▼"}</td>
+                                </tr>
+                                {isExpanded && (
+                                  <tr className="bg-gray-50 border-b border-gray-100">
+                                    <td colSpan={5} className="px-4 py-3 text-gray-600 leading-relaxed whitespace-pre-wrap">
+                                      {entry.response || <span className="text-gray-400 italic">No response</span>}
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

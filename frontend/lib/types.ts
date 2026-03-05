@@ -50,7 +50,8 @@ export interface LLMScore {
 export interface ScoreResult {
   overallScore: number;    // average across all LLMs (0–100)
   perLLM: LLMScore[];
-  queries: string[];       // the generated queries shown in the UI
+  intents: string[];       // common customer intents for this business type (step 1)
+  queries: string[];       // the generated queries shown in the UI (step 2)
   debug: DebugEntry[];
 }
 
