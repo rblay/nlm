@@ -31,15 +31,19 @@
 - Google Places API: GBP confirmed, review count/rating, opening hours, photo count
 
 **1.3 ✅ — Generate contextual queries from business profile**
-- Two-step: first generate 8 common customer intents for the business type, then turn each into a location-aware discovery query
-- Queries never include the business name (pure discovery test); area-anchored for multi-location businesses
+- Two-step: first generate 12 customer intents covering all 9 GEO intent buckets, then turn each into a location-aware discovery query
+- 9 buckets: Discovery, Fit/Persona, Constraints, Quality/Trust, Experience/Vibe, Price/Value, Comparison, Logistics/Process, Problem-based (3 intents)
+- Category detection (fitness / restaurant / beauty / other) feeds curated problem dictionaries for Problem-based bucket
+- Intents grounded in actual business description + services (constraints and problems never invented)
+- Queries never include the business name (pure discovery test); area-anchored for multi-location businesses; goal-first for problem/persona intents
 - Intents and queries both returned in `ScoreResult` and shown in the debug panel
 
 **1.4 ✅ — Query LLMs and detect business mentions**
-- OpenAI: gpt-4o-mini via Responses API + web_search tool (parallel)
-- Anthropic: claude-haiku-4-5 + web_search_20250305 server-side tool (sequential to avoid rate limits)
-- Google: gemini-2.5-flash via @google/genai SDK + googleSearch grounding (parallel)
-- Detection: case-insensitive match of business name or domain in response
+- All three LLMs queried with live web search enabled
+- OpenAI: gpt-4o-mini via Responses API + web_search tool (all 12 in parallel)
+- Anthropic: claude-haiku-4-5 + web_search_20250305 — batched 3-at-a-time with 2s delay + retry-with-backoff on 429
+- Google: gemini-2.5-flash via @google/genai SDK + googleSearch grounding (all 12 in parallel)
+- Detection: fuzzy alias matching — strips business-type suffixes to find short brand name (e.g. "Revival PT Studio" → "revival"), checks domain stem, multi-token combos; case-insensitive
 - Score per LLM = mentions / total queries × 100; overall = average across LLMs
 - `queryCount` param (default 3) controls query volume; failed calls surface error in debug table
 

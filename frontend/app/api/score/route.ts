@@ -14,27 +14,106 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
-// ─── 1.3 Step 1: Identify the most common customer intents for this business type
+// ─── 1.3 Category detection + problem dictionaries (from GEO spec) ───────────
 
-async function generateIntents(businessType: string, count: number): Promise<string[]> {
+type BusinessCategory = "fitness" | "restaurant" | "beauty" | "other";
+
+function detectCategory(businessType: string): BusinessCategory {
+  const t = businessType.toLowerCase();
+  if (/gym|fitness|studio|yoga|pilates|crossfit|boxing|hiit|spin|personal.train|pt\b/.test(t))
+    return "fitness";
+  if (/restaurant|cafe|bistro|bar|pub|food|dining|kitchen|eatery|takeaway/.test(t))
+    return "restaurant";
+  if (/spa|beauty|salon|clinic|aesthetic|massage|nail|brow|lash|facial/.test(t))
+    return "beauty";
+  return "other";
+}
+
+// Curated high-intent problem/goal queries per category (GEO spec §6)
+const PROBLEM_DICTS: Record<BusinessCategory, string[]> = {
+  fitness: [
+    "beginner weight loss",
+    "strength training for beginners",
+    "post-injury friendly training",
+    "getting fit for a marathon",
+    "low-impact workouts",
+    "stress relief and mental health",
+    "women-only classes",
+    "short workouts near work",
+    "training with a personal trainer",
+    "back-friendly workouts",
+  ],
+  restaurant: [
+    "vegan-friendly dinner",
+    "gluten-free options",
+    "quick pre-theatre meal",
+    "romantic date night",
+    "family-friendly dinner",
+    "group booking for 8–12",
+    "quiet place to have a conversation",
+    "great brunch spot",
+    "late-night food",
+    "best value lunch",
+  ],
+  beauty: [
+    "stress relief massage",
+    "back and neck tension relief",
+    "glow-up facial",
+    "facial for sensitive skin",
+    "couples spa day",
+    "pre-wedding beauty prep",
+    "long-lasting nail treatment",
+    "relaxation with sauna or steam",
+  ],
+  other: [
+    "best value option",
+    "highly rated local service",
+    "good for beginners",
+    "flexible booking",
+  ],
+};
+
+// ─── 1.3 Step 1: Generate intents spanning the 9 GEO intent buckets ──────────
+
+async function generateIntents(profile: BusinessProfile): Promise<string[]> {
+  const category = detectCategory(profile.type);
+  const problems = PROBLEM_DICTS[category].slice(0, 6).join("; ");
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: `You are an expert in consumer search behaviour. Your job is to identify the most common things potential customers want to know when searching for a local business of a given type.
+        content: `You are an expert in consumer search behaviour for local London businesses.
 
-Return the ${count} most frequently searched intents — ordered from most to least common. Each intent should be a short phrase describing what the customer wants to find out (e.g. "membership prices", "class timetable", "free trial availability").
+Generate exactly 12 customer intents for the business described below. Cover all 9 intent buckets to ensure strong query diversity:
+  1. Discovery (1 intent) — finding what's available in the area
+  2. Fit / Persona (1 intent) — suitability for a specific type of person
+  3. Constraints (1 intent) — a hard filter (price, hours, amenities) this business ACTUALLY satisfies
+  4. Quality / Trust (1 intent) — reviews, reputation, expertise — phrased generically for the area
+  5. Experience / Vibe (1 intent) — atmosphere, environment, crowding, energy
+  6. Price / Value (1 intent) — costs, deals, free trials — only if relevant to this business
+  7. Comparison (1 intent) — alternatives or comparisons in the area (e.g. "best options for X in [area]")
+  8. Logistics / Process (1 intent) — booking, cancellation, walk-ins, contracts
+  9. Problem-based (3 intents) — specific goals or use-cases this business can solve; pick the 3 most relevant from: ${problems}
 
-Return a JSON object with a single key "intents" containing an array of exactly ${count} strings.`,
+IMPORTANT:
+- NEVER mention the business name in any intent — intents are generic customer questions.
+- Constraints, Price/Value, and Problem-based intents must be grounded in the business's actual description and services — do not invent features it doesn't have.
+
+Each intent is a short phrase (3–7 words). Return exactly 12 strings.
+
+Return a JSON object: { "intents": ["...", ...] } — exactly 12 strings.`,
       },
       {
         role: "user",
-        content: `Business type: ${businessType}`,
+        content: `Business type: ${profile.type}
+Description: ${profile.description}
+Services: ${profile.services.join(", ")}`,
       },
     ],
-    max_tokens: 300,
+    max_tokens: 500,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
   return Array.isArray(parsed.intents) ? parsed.intents : [];
@@ -46,7 +125,6 @@ async function generateQueries(
   profile: BusinessProfile,
   intents: string[]
 ): Promise<string[]> {
-  const count = intents.length;
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -55,15 +133,16 @@ async function generateQueries(
         role: "system",
         content: `You generate natural language queries that a potential customer would type into an AI assistant when searching for a local business — someone who does not yet know this specific business exists.
 
-You are given a list of the most common customer intents for this business type. Write one query per intent, making each query reflect that intent naturally.
+You are given a list of customer intents spanning different search motivations. Write one query per intent, reflecting that intent naturally.
 
 Rules:
 1. NEVER include the business name in any query. These are pure discovery queries.
 2. If the business has multiple locations across different areas, anchor queries to specific neighbourhoods or areas (e.g. "boxing classes in East London", "best gyms in Notting Hill") — do NOT use proximity phrasing like "near me" or "near [postcode]".
-3. If the business appears to have a single location, you may occasionally use proximity phrasing (e.g. "gyms near Hammersmith").
-4. Make queries sound natural — like real things people type into ChatGPT or Google.
+3. If the business appears to have a single location, you may use area-specific phrasing (e.g. "personal trainers in Hammersmith").
+4. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
+5. Make queries sound natural — like real things people type into ChatGPT or Google.
 
-Return a JSON object with a single key "queries" containing an array of exactly ${count} strings, one per intent.`,
+Return a JSON object with a single key "queries" containing an array of exactly 12 strings, one per intent.`,
       },
       {
         role: "user",
@@ -72,11 +151,11 @@ Location / areas: ${profile.location}
 Description: ${profile.description}
 Services: ${profile.services.join(", ")}
 
-Customer intents to cover (one query each):
+Customer intents to turn into queries (one query each):
 ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
       },
     ],
-    max_tokens: 500,
+    max_tokens: 700,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
   return Array.isArray(parsed.queries) ? parsed.queries : [];
@@ -104,19 +183,39 @@ async function queryAnthropic(
   query: string
 ): Promise<{ response: string; latencyMs: number }> {
   const start = Date.now();
-  // web_search_20250305 is a server-side tool — Anthropic manages the search loop
-  const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 4096,
-    tools: [{ name: "web_search", type: "web_search_20250305" }],
-    messages: [{ role: "user", content: query }],
-  });
-  // Extract text blocks only (tool_use / tool_result blocks are intermediate steps)
-  const text = message.content
-    .filter((b) => b.type === "text")
-    .map((b) => ("text" in b ? b.text : ""))
-    .join("");
-  return { response: text, latencyMs: Date.now() - start };
+
+  const callAnthropic = async () => {
+    // web_search_20250305 is a server-side tool — Anthropic manages the search loop
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
+      tools: [{ name: "web_search", type: "web_search_20250305" }],
+      messages: [{ role: "user", content: query }],
+    });
+    // Extract text blocks only (tool_use / tool_result blocks are intermediate steps)
+    return message.content
+      .filter((b) => b.type === "text")
+      .map((b) => ("text" in b ? b.text : ""))
+      .join("");
+  };
+
+  try {
+    const text = await callAnthropic();
+    return { response: text, latencyMs: Date.now() - start };
+  } catch (err: unknown) {
+    // On 429, read retry-after header and wait before one retry
+    const status = (err as { status?: number })?.status;
+    if (status === 429) {
+      const headers = (err as { headers?: { get?: (k: string) => string | null } })?.headers;
+      const retryAfterRaw = headers?.get?.("retry-after") ?? "30";
+      const waitMs = Math.min(parseInt(retryAfterRaw, 10) * 1000, 60_000);
+      console.warn(`[score] Anthropic 429 — waiting ${waitMs / 1000}s before retry`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      const text = await callAnthropic();
+      return { response: text, latencyMs: Date.now() - start };
+    }
+    throw err;
+  }
 }
 
 async function queryGemini(
@@ -139,29 +238,86 @@ async function queryGemini(
 
 // ─── Detection: does the response mention this business? ─────────────────────
 
+// Generic business-type words that shouldn't count as distinctive name tokens
+const NAME_STOP_WORDS = new Set([
+  "the", "and", "of", "at", "in", "a", "an",
+  "studio", "studios", "gym", "gyms", "fitness", "health", "club", "clubs",
+  "pt", "personal", "training", "trainer", "trainers",
+  "restaurant", "restaurants", "cafe", "bar", "pub", "kitchen", "bistro",
+  "salon", "spa", "clinic", "centre", "center", "london", "ltd", "llc", "co",
+]);
+
+// Common suffixes to strip from business names to find a shorter alias
+const NAME_SUFFIXES = [
+  " personal training studio", " personal training", " pt studio",
+  " fitness studio", " fitness centre", " fitness center", " fitness club",
+  " gym", " studio", " pt", " spa", " salon", " clinic",
+  " restaurant", " cafe", " bar", " ltd", " llc",
+];
+
+function buildNameAliases(name: string): string[] {
+  const base = name.toLowerCase().trim();
+  const aliases: string[] = [base];
+
+  // Try stripping known suffixes to get a shorter brand name (e.g. "Revival PT Studio" → "Revival")
+  for (const suffix of NAME_SUFFIXES) {
+    if (base.endsWith(suffix)) {
+      const stripped = base.slice(0, -suffix.length).trim();
+      if (stripped.length > 3) {
+        aliases.push(stripped);
+      }
+      break;
+    }
+  }
+
+  // Also try meaningful multi-word tokens (filter stop words, keep words >3 chars)
+  const tokens = base
+    .split(/[\s\-&]+/)
+    .map((t) => t.replace(/[^a-z0-9]/g, ""))
+    .filter((t) => t.length > 3 && !NAME_STOP_WORDS.has(t));
+
+  if (tokens.length >= 2) {
+    // Add consecutive two-token phrases (e.g. "revival training")
+    for (let i = 0; i < tokens.length - 1; i++) {
+      aliases.push(tokens[i] + " " + tokens[i + 1]);
+    }
+  } else if (tokens.length === 1 && tokens[0].length > 4) {
+    // Single distinctive token (e.g. "revival", "gymbox") — safe if >4 chars
+    aliases.push(tokens[0]);
+  }
+
+  // Deduplicate
+  return [...new Set(aliases)];
+}
+
 function mentionsBusiness(
   response: string,
   profile: BusinessProfile,
   url: string
 ): boolean {
   const text = response.toLowerCase();
-  const name = profile.name.toLowerCase();
 
-  let domain = "";
+  // 1. Domain match (strip www. and TLD for partial match too)
   try {
-    domain = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (hostname.length > 3 && text.includes(hostname)) return true;
+    // Also check just the domain stem (e.g. "revivalptstudio" from "revivalptstudio.co.uk")
+    const stem = hostname.split(".")[0];
+    if (stem.length > 5 && text.includes(stem)) return true;
   } catch {
     // ignore malformed URL
   }
 
-  return text.includes(name) || (domain.length > 0 && text.includes(domain));
+  // 2. Name alias matching
+  const aliases = buildNameAliases(profile.name);
+  return aliases.some((alias) => text.includes(alias));
 }
 
 // ─── API route ────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { url, profile, queryCount = 3 } = body as { url: string; profile: BusinessProfile; queryCount?: number };
+  const { url, profile } = body as { url: string; profile: BusinessProfile };
 
   if (!url || !profile) {
     return NextResponse.json(
@@ -173,7 +329,7 @@ export async function POST(request: NextRequest) {
   // 1.3 Step 1 — identify common customer intents for this business type
   let intents: string[];
   try {
-    intents = await generateIntents(profile.type, queryCount);
+    intents = await generateIntents(profile);
   } catch (err) {
     console.error("[score] Intent generation failed:", err);
     return NextResponse.json(
@@ -182,7 +338,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log(`\n[score] Intents for "${profile.type}":`);
+  console.log(`\n[score] Intents for "${profile.name}" (${profile.type}):`);
   intents.forEach((intent, i) => console.log(`  ${i + 1}. ${intent}`));
 
   // 1.3 Step 2 — generate location-aware queries grounded in those intents
@@ -207,29 +363,40 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Generated ${queries.length} queries for "${profile.name}":`);
   queries.forEach((q, i) => console.log(`  ${i + 1}. ${q}`));
 
-  // 1.4 — query all 3 LLMs for every query.
-  // OpenAI and Gemini run in parallel per query; Anthropic runs sequentially
-  // across queries to avoid hitting its 50k input-token/min rate limit.
+  // 1.4 — query all 3 LLMs for every query
+  // OpenAI and Gemini fire all queries in parallel.
+  // Anthropic is batched in groups of 4 with a 1s gap to stay under its
+  // 50k input-tokens-per-minute and concurrent-connection rate limits.
   const allDebugEntries: DebugEntry[] = [];
 
-  const anthropicResults: PromiseSettledResult<{ response: string; latencyMs: number }>[] = [];
-  for (const query of queries) {
-    anthropicResults.push((await Promise.allSettled([queryAnthropic(query)]))[0]);
+  const ANTHROPIC_BATCH = 3;
+  type QueryResult = PromiseSettledResult<{ response: string; latencyMs: number }>;
+  const anthropicResults = new Map<string, QueryResult>();
+
+  for (let i = 0; i < queries.length; i += ANTHROPIC_BATCH) {
+    const batch = queries.slice(i, i + ANTHROPIC_BATCH);
+    const settled = await Promise.allSettled(batch.map(queryAnthropic));
+    batch.forEach((q, idx) => anthropicResults.set(q, settled[idx]));
+    if (i + ANTHROPIC_BATCH < queries.length) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
   }
 
   await Promise.all(
-    queries.map(async (query, i) => {
-      const [openaiResult, geminiResult] = await Promise.allSettled([
-        queryOpenAI(query),
-        queryGemini(query),
-      ]);
-      const anthropicResult = anthropicResults[i];
+    queries.map(async (query) => {
+      const [openaiResult, geminiResult] =
+        await Promise.allSettled([
+          queryOpenAI(query),
+          queryGemini(query),
+        ]);
+      const anthropicResult = anthropicResults.get(query)!;
 
-      const results: { llm: LLMProvider; settled: PromiseSettledResult<{ response: string; latencyMs: number }> }[] = [
+      const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
         { llm: "openai", settled: openaiResult },
         { llm: "anthropic", settled: anthropicResult },
         { llm: "gemini", settled: geminiResult },
       ];
+
 
       for (const { llm, settled } of results) {
         if (settled.status === "fulfilled") {
@@ -242,16 +409,13 @@ export async function POST(request: NextRequest) {
             latencyMs,
           });
         } else {
-          const errorMessage = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
-          console.error(`[score] ${llm} failed for query "${query}":`, errorMessage);
+          console.error(`[score] ${llm} failed for query "${query}":`, settled.reason);
           allDebugEntries.push({
             query,
             llm,
             response: "",
             mentioned: false,
             latencyMs: 0,
-            error: true,
-            errorMessage,
           });
         }
       }
