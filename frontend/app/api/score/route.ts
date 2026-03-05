@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import type {
   BusinessProfile,
   DebugEntry,
@@ -12,7 +12,7 @@ import type {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
 // ─── 1.3 Step 1: Identify the most common customer intents for this business type
 
@@ -122,14 +122,16 @@ async function queryGemini(
   query: string
 ): Promise<{ response: string; latencyMs: number }> {
   const start = Date.now();
-  // googleSearchRetrieval grounds the response in live Google Search results
-  const model = genai.getGenerativeModel({ model: "gemini-1.5-flash" });
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: query }] }],
-    tools: [{ googleSearchRetrieval: {} }],
+  // gemini-2.5-flash — current generation, available on free-tier AI Studio keys
+  const result = await genai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: query,
+    config: {
+      tools: [{ googleSearch: {} }],
+    },
   });
   return {
-    response: result.response.text(),
+    response: result.text ?? "",
     latencyMs: Date.now() - start,
   };
 }
