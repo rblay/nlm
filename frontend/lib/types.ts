@@ -9,6 +9,8 @@ export interface ObservableSignals {
   hasBlog: boolean;                    // /blog or /news link found
   hasFAQ: boolean;                     // /faq link or FAQ schema detected on the website
   socialLinks: string[];               // absolute URLs to social profiles
+  hasMetaDescription: boolean;         // <meta name="description"> present and non-empty
+  titleTag: string | null;             // contents of <title>, null if missing
   hasMapsEmbed: boolean;               // Google Maps embed or GBP link present on the website
   hasGoogleBusinessProfile: boolean;   // confirmed via Google Places API lookup
   gbpHasHours: boolean;                // GBP listing has opening hours set
