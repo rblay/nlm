@@ -19,31 +19,45 @@ body {
 }
 
 /* ── Flip card ─────────────────────────────────────────────────────────────── */
-
-.flip-container {
-  perspective: 1200px;
-}
+/* Each face rotates independently — no preserve-3d or backface-visibility      */
+/* required, so overflow:hidden on ancestor carousel containers is harmless.    */
 
 .flip-card-inner {
   position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-style: preserve-3d;
-}
-
-.flip-card-inner.is-flipped {
-  transform: rotateY(180deg);
+  perspective: 1200px;
 }
 
 .flip-card-face {
   position: absolute;
   inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   overflow-y: auto;
 }
 
+/* ── Not-flipped state: front visible, back hidden ─────────────────────── */
+
+.flip-card-front {
+  transform: rotateY(0deg);
+  transition: transform 0.22s ease-out 0.22s; /* re-enters with delay on unflip */
+}
+
 .flip-card-back {
-  transform: rotateY(180deg);
+  transform: rotateY(90deg);
+  transition: transform 0.22s ease-in;        /* exits immediately on unflip */
+  pointer-events: none;
+}
+
+/* ── Flipped state: back visible, front hidden ──────────────────────────── */
+
+.flip-card-inner.is-flipped .flip-card-front {
+  transform: rotateY(-90deg);
+  transition: transform 0.22s ease-in;        /* exits immediately on flip */
+  pointer-events: none;
+}
+
+.flip-card-inner.is-flipped .flip-card-back {
+  transform: rotateY(0deg);
+  transition: transform 0.22s ease-out 0.22s; /* enters with delay on flip */
+  pointer-events: auto;
 }

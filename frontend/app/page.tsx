@@ -191,6 +191,379 @@ Tips:
   },
 ];
 
+// ─── Demo mode data (Quinta Pupusas) ─────────────────────────────────────────
+
+const DEMO_URL = "https://www.quintapupusas.com/";
+
+// NOTE: these are the demo-only step labels — no product/tool names, business-flavoured only.
+// To update for a different demo business, just edit this object.
+const DEMO_STEP_LABELS: Record<string, string> = {
+  analyze:   "Getting to know Quinta...",
+  intents:   "Figuring out what hungry Londoners are searching for...",
+  chatgpt:   "Checking if AI recommends you for pupusas in London...",
+  claude:    "Searching for Quinta across AI dining guides...",
+  gemini:    "Scanning AI recommendations for Central American food...",
+  recommend: "Spotting where Quinta flies under the radar...",
+  actions:   "Cooking up the action plan...",
+};
+
+const DEMO_PROFILE: BusinessProfile = {
+  name: "Quinta",
+  type: "Salvadoran Restaurant",
+  location: "South Kensington, London",
+  description: "Quinta is a Central American restaurant in London specialising in authentic pupusas and street food. Built on the motto 'real food, authentic flavours', they serve pupusas, tacos, burritos, quesadillas and cocktails — a guilt-free taste of El Salvador in the city.",
+  services: ["Pupusas", "Tacos", "Burritos", "Quesadillas", "Nachos", "Cocktails & Beers", "Online ordering", "Table reservations", "Merchandise"],
+  signals: {
+    hasSchema: false, hasBlog: false, hasFAQ: false, hasMetaDescription: true,
+    titleTag: "QUINTA — Pupusas",
+    socialLinks: ["https://www.instagram.com/quintapupusas/"],
+    hasMapsEmbed: false, hasGoogleBusinessProfile: true, gbpHasHours: true,
+    gbpPhotoCount: 6, reviewCount: 48, reviewRating: 4.6,
+  },
+};
+
+const DEMO_INTENTS = [
+  "find authentic Central American food in London",
+  "where to eat pupusas in London",
+  "best Salvadoran restaurant near me",
+  "guilt-free healthy street food London",
+  "casual Latin American dining London",
+  "pupusa restaurant with online ordering London",
+  "best tacos and burritos in London",
+  "affordable Central American food near South Kensington",
+  "date night restaurant with unique cuisine London",
+  "top new London restaurants for authentic Latin food",
+  "Central American food for groups London",
+  "healthy takeaway options London",
+];
+
+const DEMO_QUERIES = [
+  "best place to eat pupusas in London",
+  "authentic Central American restaurant London",
+  "Salvadoran food London delivery",
+  "guilt-free street food restaurants in London",
+  "best tacos and burritos near South Kensington London",
+  "unique London restaurants for Central American food",
+  "casual Latin American dining near me London",
+  "affordable pupusa restaurant London",
+  "healthy takeaway Central American London",
+  "top Central American food spots London",
+  "group dining Central American food London",
+  "best new Latin food restaurants London",
+];
+
+const DEMO_SCORE_RESULT: ScoreResult = {
+  overallScore: 25,
+  perLLM: [
+    { llm: "openai",    score: 25, mentions: 3, totalQueries: 12 },
+    { llm: "anthropic", score: 17, mentions: 2, totalQueries: 12 },
+    { llm: "gemini",    score: 33, mentions: 4, totalQueries: 12 },
+  ],
+  intents: DEMO_INTENTS,
+  queries: DEMO_QUERIES,
+  debug: [
+    { query: DEMO_QUERIES[0], llm: "openai",    response: "For pupusas in London, Quinta on Squarespace has been mentioned, along with a few other Latin American spots.", mentioned: true,  latencyMs: 1340 },
+    { query: DEMO_QUERIES[0], llm: "anthropic", response: "London has a growing Central American food scene. Restaurants in Brixton and Hackney serve Salvadoran dishes.", mentioned: false, latencyMs: 2210 },
+    { query: DEMO_QUERIES[0], llm: "gemini",    response: "Quinta is a Central American restaurant in London specialising in authentic pupusas.", mentioned: true,  latencyMs: 1080 },
+    { query: DEMO_QUERIES[1], llm: "openai",    response: "Authentic Central American restaurants in London include a handful of spots in West and South London.", mentioned: false, latencyMs: 1150 },
+    { query: DEMO_QUERIES[1], llm: "anthropic", response: "Central American cuisine in London is underrepresented. A few pop-ups and small restaurants serve Salvadoran and Guatemalan food.", mentioned: false, latencyMs: 1990 },
+    { query: DEMO_QUERIES[1], llm: "gemini",    response: "Quinta is one of the few dedicated Salvadoran restaurants in London, serving pupusas and street food.", mentioned: true,  latencyMs: 1010 },
+    { query: DEMO_QUERIES[2], llm: "openai",    response: "For Salvadoran food delivery in London, options are limited — some Latin American restaurants offer similar dishes.", mentioned: false, latencyMs: 1280 },
+    { query: DEMO_QUERIES[2], llm: "anthropic", response: "Salvadoran delivery options in London are sparse. Deliveroo and Uber Eats carry a few Latin American restaurants.", mentioned: false, latencyMs: 2050 },
+    { query: DEMO_QUERIES[2], llm: "gemini",    response: "Quinta offers online ordering for their Central American menu including pupusas and tacos.", mentioned: true,  latencyMs: 980  },
+    { query: DEMO_QUERIES[3], llm: "openai",    response: "Guilt-free street food in London — try places like LEON, Farmer J, or some of the Borough Market stalls.", mentioned: false, latencyMs: 1200 },
+    { query: DEMO_QUERIES[3], llm: "anthropic", response: "Healthy street food in London: LEON, Itsu, and various market stalls are popular choices.", mentioned: false, latencyMs: 1870 },
+    { query: DEMO_QUERIES[3], llm: "gemini",    response: "For guilt-free street food, Quinta stands out with their 'get well fed, guilt free' ethos and fresh Central American dishes.", mentioned: true,  latencyMs: 1120 },
+    { query: DEMO_QUERIES[4], llm: "openai",    response: "Best tacos near South Kensington: Tendido Cero and a few independent spots serve Latin American food in the area.", mentioned: false, latencyMs: 1310 },
+    { query: DEMO_QUERIES[4], llm: "anthropic", response: "South Kensington has a varied dining scene — for tacos and burritos, Wahaca nearby and Quinta are worth considering.", mentioned: true,  latencyMs: 2100 },
+    { query: DEMO_QUERIES[4], llm: "gemini",    response: "Near South Kensington for tacos and burritos, Quinta is one of the few spots specialising in Central American food.", mentioned: true,  latencyMs: 1040 },
+    { query: DEMO_QUERIES[5], llm: "openai",    response: "Unique Central American restaurants in London — the scene is niche but growing, with a few spots in West and South London.", mentioned: true,  latencyMs: 1190 },
+    { query: DEMO_QUERIES[5], llm: "anthropic", response: "For unique Central American food, there are very few dedicated restaurants. Most Latin American spots in London focus on Mexican or Brazilian cuisine.", mentioned: false, latencyMs: 1950 },
+    { query: DEMO_QUERIES[5], llm: "gemini",    response: "Central American dining in London is rare — Quinta is one of the few restaurants dedicated to Salvadoran food and pupusas.", mentioned: true,  latencyMs: 1070 },
+  ],
+  summary: "Quinta surfaces in roughly a quarter of AI-generated responses about London dining, but almost exclusively when the query specifically mentions pupusas or Central American food. For broader searches — healthy street food, casual Latin dining, South Kensington restaurants — it rarely appears. Gemini is most likely to mention it; Claude almost never does. The core issue is thin indexed content: no blog, no FAQ, and absent Schema markup mean AI models have little to draw on beyond the homepage.",
+};
+
+const DEMO_BLOG_CONTENT = `# Day 1: What Makes a Perfect Pupusa? The Story Behind Quinta
+
+Pupusas are one of Central America's best-kept culinary secrets — thick, handmade corn tortillas stuffed with savoury fillings and cooked on a flat comal until golden. At Quinta, they're the heart of everything we do.
+
+## Where Pupusas Come From
+
+The pupusa is the national dish of El Salvador, with roots stretching back over 2,000 years to indigenous Pipil communities. Traditionally made from masa (nixtamalised corn dough), they were cooked over open fires and shared communally — food as connection, not just fuel.
+
+## What Goes Inside
+
+At Quinta, we stuff our pupusas with combinations that balance tradition and freshness. Classic options include cheese and loroco (a Central American flower bud with a subtle, earthy flavour), chicharrón (slow-cooked pork), and refried beans. Each filling is chosen for how it complements the masa.
+
+## The Art of the Comal
+
+Getting the comal temperature right is everything. Too cool, and the masa goes soft and stodgy. Too hot, and the outside chars before the inside cooks through. Our kitchen team has years of practice reading the heat — it's the kind of thing that can't be rushed.
+
+## Guilt-Free, Genuinely
+
+Our motto — get well fed, guilt free — isn't a marketing line. Pupusas are naturally gluten-free, made from simple ingredients, and served with curtido (a lightly fermented cabbage slaw) that adds crunch and gut-friendly probiotics. Real food, done properly.
+
+---
+
+# Day 5: The Best Events to Experience Central American Culture in London
+
+London has one of the most diverse cultural scenes in the world, and Central American culture is finally getting the spotlight it deserves. Whether you're curious about the food, the music, or the history, here's where to start.
+
+## Festivals and Community Events
+
+The Latin American community in London hosts regular cultural celebrations throughout the year. Carnaval del Pueblo, held in Burgess Park, is one of the largest Latin American festivals in Europe — a brilliant introduction to the music, dance, and food of the region, including Salvadoran and Guatemalan dishes you won't find anywhere else.
+
+## Film and Art
+
+The Instituto Cervantes in London regularly screens Central American cinema and hosts exhibitions exploring the region's art and history. It's a quieter, more intimate way to connect with the culture — and free for most events.
+
+## The Best Way to Start: Eat the Food
+
+If you want to understand a culture, start with its food. Pupusas aren't just a dish — they're a social ritual. In El Salvador, they're eaten on Sunday evenings with family, shared at markets, and made fresh at home. Coming to Quinta is a small window into that world.
+
+## Plan Your Visit
+
+Quinta is open for lunch and dinner. You can book a table online or walk in. Pair your meal with one of our Central American-inspired cocktails for the full experience.
+
+---
+
+# Day 10: From El Salvador to South Kensington: The Journey of the Pupusa
+
+Every dish has a story. The pupusa's story stretches from pre-Columbian Mesoamerica to a small restaurant in London — and it's a story worth telling.
+
+## Ancient Roots
+
+Archaeological evidence suggests pupusas have been made in what is now El Salvador for over 2,000 years. The Pipil people, indigenous to the region, ground corn using a metate and shaped masa by hand. The comal — a flat clay or metal griddle — was their oven.
+
+## National Identity
+
+In 2005, El Salvador officially declared November 13th as National Pupusa Day. The dish is more than food: it's a symbol of resilience, community, and pride. Salvadorans living abroad carry the tradition with them — and that's how pupusas arrived in London.
+
+## What Makes the London Version Different
+
+At Quinta, we stay true to the original. We use masa harina, traditional fillings, and the same cooking technique passed down through generations. What's different is the setting: a London dining room where the dish can reach people who've never tasted Central American food before.
+
+## Why It Matters
+
+Food is one of the most direct ways to cross cultural boundaries. Every pupusa we serve is a small act of sharing — a dish that says: this is where we come from, and we're glad you're here.
+
+---
+
+# Day 15: Why Central American Street Food Is London's Best-Kept Secret
+
+London's food scene gets a lot of attention — rightly so. But while Mexican, Peruvian, and Brazilian cuisines have found their footing, Central American food remains largely undiscovered. That's starting to change.
+
+## The Gap in London's Food Map
+
+Ask most Londoners to name a Central American restaurant and they'll struggle. Yet the flavours of El Salvador, Guatemala, Honduras, and Nicaragua are just as rich, just as nuanced, and just as worthy of a place in the city's food culture as any other regional cuisine.
+
+## What Sets It Apart
+
+Central American cooking is built on corn, beans, and slow preparation. It's not fusion food or trend-chasing — it's centuries-old technique applied to simple, high-quality ingredients. Pupusas, for instance, require no oven, no complex equipment, just a skilled pair of hands and good masa.
+
+## Quinta's Role
+
+Quinta opened to give Londoners a genuine point of entry into this cuisine. Not a watered-down version, not fusion — authentic flavours, made properly. The response has been stronger than expected, which tells you something about how ready London is for this food.
+
+## Where to Start
+
+Order the cheese and loroco pupusa. Loroco is a Central American flower bud with an earthy, slightly nutty flavour — you won't have tasted it before, and you'll want it again. Add curtido on the side and eat it the way it was meant to be eaten: hot, fresh, and shared.
+
+---
+
+# Day 22: Quinta's Guide to a Guilt-Free Night Out in London
+
+Going out shouldn't mean paying for it the next day. Quinta was built around a simple idea: you can eat well, drink well, and still feel good about it. Here's how to do a Quinta night properly.
+
+## Start with Cocktails
+
+Our cocktail list draws on Central American ingredients — tropical fruits, herbs, and spirits that don't appear on many London menus. Start with something fresh and citrusy to open your appetite.
+
+## Order to Share
+
+The best way to eat at Quinta is to order several dishes between the table. Get a mix of pupusas — try at least one with loroco and cheese, one with chicharrón. Add nachos for the table, and a round of tacos if you're hungry.
+
+## The Guilt-Free Part
+
+Everything on our menu is made from fresh, simple ingredients. No hidden additives, no heavy processing. Pupusas are naturally gluten-free and filling without being heavy. You'll leave satisfied, not sluggish.
+
+## End on Something Sweet
+
+Our dessert menu is short but considered. Ask the team what's on that night — it changes with the season and what's come in fresh.
+
+## Book or Walk In
+
+We take reservations online and welcome walk-ins. Friday and Saturday evenings fill up quickly, so booking ahead is worth it if you have a specific time in mind.`;
+
+const DEMO_FAQ_CONTENT = `Q1: What exactly is a pupusa?
+A1: A pupusa is a thick, handmade corn tortilla stuffed with savoury fillings — cheese, beans, pork, or combinations of these — then cooked on a flat griddle called a comal. It's the national dish of El Salvador and the heart of our menu at Quinta.
+
+Q2: Are pupusas gluten-free?
+A2: Yes. Our pupusas are made from masa (nixtamalised corn dough), which is naturally gluten-free. If you have a gluten intolerance or coeliac disease, please let us know and we'll take extra care with preparation.
+
+Q3: What other dishes do you serve at Quinta?
+A3: Beyond pupusas, we serve tacos, burritos, quesadillas, nachos, starters, and desserts. Our drinks menu includes cocktails, beers, wine, and soft drinks. There's something for everyone.
+
+Q4: Can I book a table at Quinta?
+A4: Yes — reservations can be made through our website via the OrderTab booking system. Walk-ins are also welcome, subject to availability.
+
+Q5: Do you offer online ordering or delivery?
+A5: Yes, you can order online directly through our website. We also have delivery available through third-party platforms — check our site for current options.
+
+Q6: Where is Quinta located?
+A6: Quinta is in London. Full address and directions are available on our website and Google Business Profile.
+
+Q7: Is the food at Quinta suitable for vegetarians?
+A7: Yes, several of our dishes are vegetarian-friendly, including cheese and loroco pupusas, bean pupusas, and various sides. Please ask our team about specific options when you visit.
+
+Q8: What does 'guilt-free' mean on your menu?
+A8: It reflects our philosophy: fresh ingredients, nothing artificial, portions that satisfy without excess. Pupusas are naturally gluten-free and made simply — real food that happens to be good for you.
+
+Q9: Do you cater for groups or private events?
+A9: We can accommodate groups — get in touch via our contact page to discuss availability and any special requirements.
+
+Q10: Do you have a loyalty programme or newsletter?
+A10: You can sign up to our email newsletter on the website to hear about new openings, menu updates, and offers.`;
+
+const DEMO_RECOMMENDATIONS: Recommendation[] = [
+  {
+    title: "Publish a blog or news section",
+    whyItMatters: "Fresh, indexed content about pupusas and Central American food gives AI models something to cite. Businesses with active blogs are surfaced significantly more often in AI-generated local recommendations.",
+    observed: "No blog or news section detected on the site.",
+    impact: "High",
+    firstAction: "Write 2–3 posts covering pupusa history, menu highlights, and London dining guides.",
+  },
+  {
+    title: "Create a FAQ page",
+    whyItMatters: "AI models use FAQ pages as a primary source when answering questions about local businesses. A well-structured FAQ about your food and booking process would directly increase citation frequency.",
+    observed: "No FAQ page detected.",
+    impact: "High",
+    firstAction: "Add a dedicated FAQ page covering your most common customer questions.",
+  },
+  {
+    title: "Add Schema.org markup",
+    whyItMatters: "Without structured data, AI models struggle to extract accurate details about Quinta — location, cuisine type, hours, and menu. Schema markup is the single highest-impact technical fix for LLM visibility.",
+    observed: "No JSON-LD schema detected on homepage.",
+    impact: "High",
+    firstAction: "Add a Restaurant JSON-LD snippet to your homepage <head>.",
+  },
+  {
+    title: "Add more Google Business Profile photos",
+    whyItMatters: "GBP listings with 10+ photos rank higher in local packs and are more likely to be referenced by AI models when describing local restaurants.",
+    observed: "6 photos on GBP (target: 10+).",
+    impact: "Medium",
+    firstAction: "Upload at least 4 more photos: food close-ups, interior, drinks, and team.",
+  },
+];
+
+const DEMO_ACTIONS: ActionCard[] = [
+  {
+    id: "blog", title: "Blog post draft", impact: "High",
+    whyItMatters: "Publish this on your website to build content authority and increase AI citations for pupusa and Central American food queries in London.",
+    content: DEMO_BLOG_CONTENT,
+    contentType: "text",
+  },
+  {
+    id: "faq", title: "FAQ page content", impact: "High",
+    whyItMatters: "Add these Q&As to a dedicated FAQ page. AI models use FAQ pages as a primary source for factual answers about local restaurants.",
+    content: DEMO_FAQ_CONTENT,
+    contentType: "text",
+  },
+  {
+    id: "schema", title: "Schema.org JSON-LD snippet", impact: "High",
+    whyItMatters: "Paste this into your homepage <head> so AI models can reliably extract Quinta's details.",
+    content: `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Restaurant",
+  "name": "Quinta",
+  "url": "https://www.quintapupusas.com",
+  "description": "Authentic Central American restaurant in London specialising in pupusas, tacos, burritos and street food. Real food, authentic flavours.",
+  "servesCuisine": ["Salvadoran", "Central American", "Latin American"],
+  "priceRange": "££",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "London",
+    "addressCountry": "GB"
+  },
+  "sameAs": [
+    "https://www.instagram.com/quintapupusas/"
+  ],
+  "menu": "https://www.quintapupusas.com/menu",
+  "hasMap": "https://maps.google.com/?q=Quinta+Pupusas+London",
+  "acceptsReservations": true
+}
+</script>`,
+    contentType: "code",
+  },
+  {
+    id: "gbp-photos", title: "GBP photo checklist", impact: "Medium",
+    whyItMatters: "Upload at least 4 more photos to reach the 10-photo threshold that boosts local pack ranking and AI citations.",
+    content: `Photos to upload to your Google Business Profile:
+
+1. Hero food shot — a perfect pupusa, freshly off the comal
+2. Interior — wide angle showing the dining space and atmosphere
+3. Drinks — cocktail or beer with the food in the background
+4. Kitchen / preparation — masa being shaped, comal in action
+5. Team shot — welcoming, human, authentic
+6. Curtido and sauces — the accompaniments that make the dish
+
+Tips:
+- Use natural light where possible; avoid flash
+- Minimum 720px resolution, JPG or PNG
+- Add a short keyword-rich caption to each photo in GBP
+- Update photos seasonally to signal an active listing`,
+    contentType: "steps",
+  },
+];
+
+// ─── Fun loading step labels (adapt to business type) ─────────────────────────
+
+// NOTE: no tool/product names here — purely business-context messages.
+// To revert to generic labels, remove the call to getFunStepLabels in handleSubmit.
+function getFunStepLabels(businessType: string): Partial<Record<string, string>> {
+  const t = businessType.toLowerCase();
+  if (/restaurant|café|cafe|bar|food|kitchen|bistro|diner|eatery|pizz|sushi|taco|pupusa|burrito|curry|takeaway|dining/.test(t)) {
+    return {
+      intents:   "Figuring out what hungry locals are searching for...",
+      chatgpt:   "Checking if AI recommends you for local dining...",
+      claude:    "Searching for you across AI food guides...",
+      gemini:    "Scanning AI restaurant recommendations in your area...",
+      recommend: "Spotting where you're missing the spotlight...",
+      actions:   "Putting together your recipe for success...",
+    };
+  }
+  if (/gym|fitness|personal train|yoga|pilates|crossfit|studio|health club/.test(t)) {
+    return {
+      intents:   "Figuring out what fitness seekers are searching for...",
+      chatgpt:   "Checking if AI recommends you for local fitness...",
+      claude:    "Searching for you across AI health guides...",
+      gemini:    "Scanning AI fitness recommendations nearby...",
+      recommend: "Identifying where you're benched...",
+      actions:   "Building your training plan...",
+    };
+  }
+  if (/salon|spa|beauty|hair|nail|barber|aesthet/.test(t)) {
+    return {
+      intents:   "Figuring out what beauty seekers are searching for...",
+      chatgpt:   "Checking if AI recommends you for local beauty...",
+      claude:    "Searching for you across AI lifestyle guides...",
+      gemini:    "Scanning AI beauty recommendations nearby...",
+      recommend: "Spotting where you need a touch-up...",
+      actions:   "Putting together your glow-up plan...",
+    };
+  }
+  return {
+    intents:   "Figuring out what your customers are searching for...",
+    chatgpt:   "Checking if AI recommends you in your category...",
+    claude:    "Searching for you across AI guides...",
+    gemini:    "Scanning AI recommendations in your area...",
+    recommend: "Identifying your visibility gaps...",
+    actions:   "Putting together your action plan...",
+  };
+}
+
 // ─── Pipeline steps ───────────────────────────────────────────────────────────
 
 type StepStatus = "pending" | "loading" | "done" | "error";
@@ -273,21 +646,52 @@ const IMPACT_STYLES: Record<RecommendationImpact, string> = {
 // ─── FAQ / Blog content parsers ───────────────────────────────────────────────
 
 function parseFAQ(content: string): Array<{ title: string; body: string }> {
-  const items: Array<{ title: string; body: string }> = [];
-  const regex = /Q\d+:\s*(.+?)\nA\d+:\s*([\s\S]+?)(?=\n\nQ\d+:|$)/g;
-  let match;
-  while ((match = regex.exec(content)) !== null) {
-    items.push({ title: match[1].trim(), body: match[2].trim() });
+  // Format 1: LLM output — ### Question\nAnswer
+  const h3Items: Array<{ title: string; body: string }> = [];
+  const h3Regex = /###\s+(.+?)\n([\s\S]+?)(?=\n###\s|$)/g;
+  let m;
+  while ((m = h3Regex.exec(content)) !== null) {
+    const body = m[2].trim();
+    if (body) h3Items.push({ title: m[1].trim(), body });
   }
-  return items.length > 0 ? items : [{ title: "FAQ Content", body: content }];
+  if (h3Items.length > 0) return h3Items;
+
+  // Format 2: demo data — Q1: Question\nA1: Answer
+  const qaItems: Array<{ title: string; body: string }> = [];
+  const qaRegex = /Q\d+:\s*(.+?)\nA\d+:\s*([\s\S]+?)(?=\n\nQ\d+:|$)/g;
+  while ((m = qaRegex.exec(content)) !== null) {
+    qaItems.push({ title: m[1].trim(), body: m[2].trim() });
+  }
+  if (qaItems.length > 0) return qaItems;
+
+  return [{ title: "FAQ Content", body: content }];
 }
 
 function parseBlog(content: string): Array<{ title: string; body: string }> {
+  const posts = content.split(/\n{2,}---\n{2,}/);
+  if (posts.length > 1) {
+    return posts.map((post) => {
+      const firstLine = post.trim().split("\n")[0].replace(/^#+\s*/, "").trim();
+      return { title: firstLine || "Blog Post", body: post.trim() };
+    });
+  }
   const firstLine = content.trim().split("\n")[0].replace(/^#+\s*/, "").trim();
   return [{ title: firstLine || "Blog Post", body: content }];
 }
 
 // ─── Accordion list (for FAQ / blog card backs) ───────────────────────────────
+
+function AccordionTitle({ title }: { title: string }) {
+  const match = title.match(/^(Day \d+:)\s*(.+)/);
+  if (match) {
+    return (
+      <span className="text-sm font-medium text-[#1e2d4a] leading-snug pr-3">
+        <span className="font-bold">{match[1]}</span> {match[2]}
+      </span>
+    );
+  }
+  return <span className="text-sm font-medium text-[#1e2d4a] leading-snug pr-3">{title}</span>;
+}
 
 function AccordionList({ items }: { items: Array<{ title: string; body: string }> }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -308,7 +712,7 @@ function AccordionList({ items }: { items: Array<{ title: string; body: string }
             onClick={() => setOpenIndex(openIndex === i ? null : i)}
             className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[#1e2d4a]/[0.03] transition-colors"
           >
-            <span className="text-sm font-medium text-[#1e2d4a] leading-snug pr-3">{item.title}</span>
+            <AccordionTitle title={item.title} />
             <span className="text-[#1e2d4a]/30 flex-shrink-0 text-xs">{openIndex === i ? "▲" : "▼"}</span>
           </button>
           {openIndex === i && (
@@ -426,9 +830,20 @@ function ImprovementFlipCard({
   onHireAgent: () => void;
 }) {
   const [copied, setCopied] = React.useState(false);
+  const [copiedAll, setCopiedAll] = React.useState(false);
 
-  const isFAQ  = action && (action.id === "faq"  || /^Q1:\s/.test(action.content.trim()));
-  const isBlog = action && (action.id === "blog"  || /^#\s/.test(action.content.trim()));
+  const isFAQ  = action && (action.id === "faq" || action.id === "faq-draft" || /^Q1:\s/.test(action.content.trim()) || /^#[^\n]*\n[\s\S]*###/.test(action.content.trim()));
+  const isBlog = action && (action.id === "blog" || action.id === "blog-post-intro" || /^#\s/.test(action.content.trim())) && !isFAQ;
+
+  function handleCopyAllFAQ() {
+    if (!action) return;
+    const items = parseFAQ(action.content);
+    const md = items.map((item) => `**Q: ${item.title}**\n\n${item.body}`).join("\n\n---\n\n");
+    navigator.clipboard.writeText(md).then(() => {
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    });
+  }
 
   const accordionItems = isFAQ
     ? parseFAQ(action!.content)
@@ -493,7 +908,17 @@ function ImprovementFlipCard({
               accordionItems ? (
                 /* FAQ or Blog: accordion */
                 <>
-                  <p className="text-xs text-[#6b7a8d] leading-relaxed mb-3">{action.whyItMatters}</p>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <p className="text-xs text-[#6b7a8d] leading-relaxed">{action.whyItMatters}</p>
+                    {isFAQ && (
+                      <button
+                        onClick={handleCopyAllFAQ}
+                        className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg border border-[#1e2d4a]/15 text-[#6b7a8d] hover:bg-[#1e2d4a]/[0.04] transition-colors"
+                      >
+                        {copiedAll ? "Copied!" : "Copy FAQ as Markdown"}
+                      </button>
+                    )}
+                  </div>
                   <AccordionList items={accordionItems} />
                   {action.isPlaceholder && (
                     <p className="text-xs text-amber-600/70 mt-2 italic">Template — customise before using.</p>
@@ -558,6 +983,11 @@ export default function Home() {
   const [devMode] = useState(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev")
   );
+  const [demoMode] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo")
+  );
+
+
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -589,7 +1019,7 @@ export default function Home() {
     const obs = new ResizeObserver(([entry]) => setCardWidth(entry.contentRect.width * 0.88));
     obs.observe(carouselRef.current);
     return () => obs.disconnect();
-  }, [submitted]);
+  }, [submitted, recommendations.length]);
 
   useEffect(() => {
     if (showModal && steps.every((s) => s.status === "done")) {
@@ -650,6 +1080,33 @@ export default function Home() {
       return;
     }
 
+    if (demoMode) {
+      setSubmitted(true);
+      const advance = (id: string, s: StepStatus) =>
+        setSteps((prev) => prev.map((p) => (p.id === id ? { ...p, status: s } : p)));
+      const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+      const demoSteps: PipelineStep[] = Object.entries(DEMO_STEP_LABELS).map(([id, label]) => ({
+        id, label, status: "pending" as StepStatus,
+      }));
+      setSteps(demoSteps);
+      setShowModal(true);
+      advance("analyze",   "loading");
+      await wait(800);  advance("analyze",   "done"); advance("intents",   "loading");
+      await wait(900);  advance("intents",   "done"); advance("chatgpt",   "loading");
+      await wait(1400); advance("chatgpt",   "done"); advance("claude",    "loading");
+      await wait(1300); advance("claude",    "done"); advance("gemini",    "loading");
+      await wait(1100); advance("gemini",    "done"); advance("recommend", "loading");
+      await wait(700);  advance("recommend", "done"); advance("actions",   "loading");
+      await wait(800);  advance("actions",   "done");
+      await wait(300);
+      setProfile(DEMO_PROFILE);
+      setScoreResult(DEMO_SCORE_RESULT);
+      setRecommendations(DEMO_RECOMMENDATIONS);
+      setActions(DEMO_ACTIONS);
+      setShowModal(false);
+      return;
+    }
+
     if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
     setSubmitted(true);
     setProfile(null);
@@ -697,6 +1154,8 @@ export default function Home() {
       fetchedProfile = data.profile;
       setProfile(fetchedProfile);
       setStep("analyze", { status: "done" });
+      const funLabels = getFunStepLabels(fetchedProfile.type);
+      setSteps((prev) => prev.map((s) => funLabels[s.id] ? { ...s, label: funLabels[s.id]! } : s));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setStep("analyze", { status: "error", error: msg });
@@ -796,13 +1255,16 @@ export default function Home() {
             </div>
             <ul className="space-y-3">
               {steps.map((step) => (
-                <li key={step.id} className="flex items-start gap-3">
+                <li key={step.id} className="flex items-center gap-3">
                   <StepIcon status={step.status} />
                   <div className="min-w-0">
-                    <span className={`text-sm ${
-                      step.status === "pending" ? "text-[#9aa3af]" :
-                      step.status === "error"   ? "text-red-600"   : "text-[#1e2d4a]"
-                    }`}>{step.label}</span>
+                    {step.status === "pending" ? (
+                      <span className="block h-2 w-28 rounded bg-[#1e2d4a]/10" />
+                    ) : (
+                      <span className={`text-sm ${step.status === "error" ? "text-red-600" : "text-[#1e2d4a]"}`}>
+                        {step.label}
+                      </span>
+                    )}
                     {step.error && (
                       <p className="text-xs text-red-500 mt-1 font-mono break-words">{step.error}</p>
                     )}
@@ -829,7 +1291,7 @@ export default function Home() {
           </p>
 
           <h1 className="text-5xl font-bold text-[#1e2d4a] leading-tight" style={{ fontFamily: "var(--font-playfair)" }}>
-            Can people find you on LLMs?
+            AI is recommending businesses. Is yours one of them?
           </h1>
 
           <p className="text-[#6b7a8d] text-lg leading-relaxed">
