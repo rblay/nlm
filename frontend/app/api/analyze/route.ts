@@ -7,7 +7,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 function extractSignals(html: string): ObservableSignals {
   const hasSchema = /<script[^>]+type=["']application\/ld\+json["']/i.test(html);
   const hasBlog = /href=["'][^"']*\/(blog|news)[/"']/i.test(html);
-  const hasMapsEmbed = /maps\.google\.com|google\.com\/maps/i.test(html);
+  const hasMapsEmbed = /maps\.google\.com|google\.com\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(html);
 
   const socialPatterns: RegExp[] = [
     /https?:\/\/(www\.)?(facebook\.com|fb\.com)\/[^\s"'<>]+/gi,
@@ -66,33 +66,33 @@ export async function POST(request: NextRequest) {
     .slice(0, 3000);
 
   // Extract structured business info via GPT-4o-mini
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You are a business analyst. Extract structured information about the business from the webpage content.
+  let extracted: { name: string; type: string; location: string; description: string; services: string[] };
+  try {
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You are a business analyst. Extract structured information about the business from the webpage content.
 Return a JSON object with exactly these fields:
 - name: the business name (string)
 - type: the business type in 1-2 words, e.g. "gym", "restaurant", "boutique" (string)
 - location: city and/or neighbourhood if detectable, otherwise empty string (string)
 - description: a factual 2-3 sentence summary of what the business does, who it serves, and what makes it distinctive (string)
 - services: an array of 3-6 key services or offerings (string[])`,
-      },
-      {
-        role: "user",
-        content: `URL: ${url}\n\nWebpage content:\n${text}`,
-      },
-    ],
-    max_tokens: 400,
-  });
-
-  let extracted: { name: string; type: string; location: string; description: string; services: string[] };
-  try {
+        },
+        {
+          role: "user",
+          content: `URL: ${url}\n\nWebpage content:\n${text}`,
+        },
+      ],
+      max_tokens: 400,
+    });
     extracted = JSON.parse(completion.choices[0].message.content ?? "{}");
-  } catch {
-    return NextResponse.json({ error: "Failed to parse business profile" }, { status: 500 });
+  } catch (err) {
+    console.error("[analyze] OpenAI call failed:", err);
+    return NextResponse.json({ error: "Failed to analyse business — check your OPENAI_API_KEY" }, { status: 500 });
   }
 
   const profile: BusinessProfile = {

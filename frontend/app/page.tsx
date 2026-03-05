@@ -42,6 +42,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,6 +58,10 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Server error (${res.status}) — check your .env.local API keys`);
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Analysis failed");
       setProfile(data.profile);
@@ -191,7 +196,7 @@ export default function Home() {
                         { label: "Schema markup", active: profile.signals.hasSchema },
                         { label: "Blog / News", active: profile.signals.hasBlog },
                         { label: "Social links", active: profile.signals.socialLinks.length > 0 },
-                        { label: "Google Maps", active: profile.signals.hasMapsEmbed },
+                        { label: "Google Maps link", active: profile.signals.hasMapsEmbed },
                       ].map(({ label, active }) => (
                         <span
                           key={label}
@@ -206,6 +211,24 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Debug panel */}
+              {profile && (
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    onClick={() => setDebugOpen((o) => !o)}
+                    className="w-full px-6 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
+                    <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">Debug — Raw Profile</span>
+                    <span className="text-xs text-gray-400">{debugOpen ? "▲ hide" : "▼ show"}</span>
+                  </button>
+                  {debugOpen && (
+                    <pre className="px-6 py-4 text-xs text-gray-600 bg-white overflow-x-auto leading-relaxed">
+                      {JSON.stringify(profile, null, 2)}
+                    </pre>
+                  )}
                 </div>
               )}
 
