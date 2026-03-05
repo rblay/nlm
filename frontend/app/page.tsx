@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type {
   BusinessProfile,
   Recommendation,
@@ -9,6 +9,43 @@ import type {
   LLMProvider,
   ActionCard,
 } from "@/lib/types";
+
+// ─── Pipeline steps ───────────────────────────────────────────────────────────
+
+type StepStatus = "pending" | "loading" | "done" | "error";
+type PipelineStep = { id: string; label: string; status: StepStatus; error?: string };
+
+const INITIAL_STEPS: PipelineStep[] = [
+  { id: "analyze",   label: "Extracting business from URL",    status: "pending" },
+  { id: "intents",   label: "Analysing key customer intent",   status: "pending" },
+  { id: "chatgpt",   label: "Calculating ChatGPT visibility",  status: "pending" },
+  { id: "claude",    label: "Calculating Claude visibility",   status: "pending" },
+  { id: "gemini",    label: "Calculating Gemini visibility",   status: "pending" },
+  { id: "recommend", label: "Generating recommendations",      status: "pending" },
+  { id: "actions",   label: "Suggesting relevant actions",     status: "pending" },
+];
+
+function StepIcon({ status }: { status: StepStatus }) {
+  if (status === "loading")
+    return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />;
+  if (status === "done")
+    return (
+      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-green-500 flex items-center justify-center">
+        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2 5l2.5 2.5L8 3" />
+        </svg>
+      </div>
+    );
+  if (status === "error")
+    return (
+      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-red-500 flex items-center justify-center">
+        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l4 4M7 3l-4 4" />
+        </svg>
+      </div>
+    );
+  return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-gray-200" />;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,7 +182,9 @@ function ActionCardComponent({ action }: { action: ActionCard }) {
 export default function Home() {
   const [url, setUrl] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
+  const [steps, setSteps] = useState<PipelineStep[]>(INITIAL_STEPS);
+  const [showModal, setShowModal] = useState(false);
+  const intentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +198,17 @@ export default function Home() {
   const [runScore, setRunScore] = useState(true);
   const [runRecommendations, setRunRecommendations] = useState(true);
 
+  // Auto-close modal when all steps finish successfully
+  useEffect(() => {
+    if (showModal && steps.every((s) => s.status === "done")) {
+      const t = setTimeout(() => setShowModal(false), 800);
+      return () => clearTimeout(t);
+    }
+  }, [steps, showModal]);
+
+  const setStep = (id: string, update: Partial<PipelineStep>) =>
+    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...update } : s)));
+
   function toggleRow(key: string) {
     setExpandedRows((prev) => {
       const next = new Set(prev);
@@ -171,6 +221,7 @@ export default function Home() {
     e.preventDefault();
     if (!url.trim()) return;
 
+    if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
     setSubmitted(true);
     setProfile(null);
     setScoreResult(null);
@@ -183,8 +234,25 @@ export default function Home() {
     setActions([]);
     setActionsLoading(false);
 
+    // Build step list based on what's actually being run (skip unchecked sections)
+    const activeSteps: PipelineStep[] = [
+      { id: "analyze",   label: "Extracting business from URL",    status: "pending" },
+      ...(runScore ? [
+        { id: "intents",   label: "Analysing key customer intent",   status: "pending" as StepStatus },
+        { id: "chatgpt",   label: "Calculating ChatGPT visibility",  status: "pending" as StepStatus },
+        { id: "claude",    label: "Calculating Claude visibility",   status: "pending" as StepStatus },
+        { id: "gemini",    label: "Calculating Gemini visibility",   status: "pending" as StepStatus },
+      ] : []),
+      ...(runRecommendations ? [
+        { id: "recommend", label: "Generating recommendations",      status: "pending" as StepStatus },
+        { id: "actions",   label: "Suggesting relevant actions",     status: "pending" as StepStatus },
+      ] : []),
+    ];
+    setSteps(activeSteps);
+    setShowModal(true);
+
     // ── Step 1: Extract business profile ────────────────────────────────────
-    setLoadingStatus("Extracting business info...");
+    setStep("analyze", { status: "loading" });
     let fetchedProfile: BusinessProfile;
     try {
       const res = await fetch("/api/analyze", {
@@ -193,81 +261,139 @@ export default function Home() {
         body: JSON.stringify({ url }),
       });
       const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
+      if (!contentType.includes("application/json"))
         throw new Error(`Server error (${res.status}) — check your .env.local API keys`);
-      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Analysis failed");
       fetchedProfile = data.profile;
       setProfile(fetchedProfile);
-
-      // Kick off recommendations + actions in the background after profile is ready
-      if (runRecommendations) {
-        setRecommendationsLoading(true);
-        fetch("/api/recommend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profile: fetchedProfile }),
-        })
-          .then((r) => r.json())
-          .then((d) => {
-            if (d.recommendations) setRecommendations(d.recommendations);
-          })
-          .catch(() => setRecommendationsError(true))
-          .finally(() => setRecommendationsLoading(false));
-
-        setActionsLoading(true);
-        fetch("/api/actions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profile: fetchedProfile, url }),
-        })
-          .then((r) => r.json())
-          .then((d) => {
-            if (d.actions) setActions(d.actions);
-          })
-          .catch(() => {})
-          .finally(() => setActionsLoading(false));
-      }
+      setStep("analyze", { status: "done" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setLoadingStatus(null);
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setStep("analyze", { status: "error", error: msg });
+      setError(msg);
       return;
     }
 
-    // ── Step 2: Generate queries + score across LLMs ─────────────────────────
-    if (runScore) {
-      setLoadingStatus("Generating customer queries...");
-      try {
-        await new Promise((r) => setTimeout(r, 400));
-        setLoadingStatus("Querying AI models with live web search... (this takes ~30s)");
+    // ── Recommendations + actions (background, if enabled) ───────────────────
+    if (runRecommendations) {
+      setStep("recommend", { status: "loading" });
+      setRecommendationsLoading(true);
+      fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: fetchedProfile }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.recommendations) setRecommendations(d.recommendations);
+          setStep("recommend", { status: "done" });
+        })
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : "Recommendations failed";
+          setStep("recommend", { status: "error", error: msg });
+          setRecommendationsError(true);
+        })
+        .finally(() => setRecommendationsLoading(false));
 
+      setStep("actions", { status: "loading" });
+      setActionsLoading(true);
+      fetch("/api/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: fetchedProfile, url }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.actions) setActions(d.actions);
+          setStep("actions", { status: "done" });
+        })
+        .catch(() => setStep("actions", { status: "error" }))
+        .finally(() => setActionsLoading(false));
+    }
+
+    // ── Step 2–5: Generate intents + query all 3 LLMs ────────────────────────
+    if (runScore) {
+      setStep("intents", { status: "loading" });
+      // After ~3s the intent phase is likely done server-side; show LLMs as loading
+      intentTimeoutRef.current = setTimeout(() => {
+        setStep("intents", { status: "done" });
+        setStep("chatgpt", { status: "loading" });
+        setStep("claude", { status: "loading" });
+        setStep("gemini", { status: "loading" });
+      }, 3000);
+      try {
         const res = await fetch("/api/score", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url, profile: fetchedProfile }),
         });
         const contentType = res.headers.get("content-type") ?? "";
-        if (!contentType.includes("application/json")) {
+        if (!contentType.includes("application/json"))
           throw new Error(`Scoring error (${res.status}) — check your API keys`);
-        }
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Scoring failed");
+        if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
+        setStep("intents", { status: "done" });
+        setStep("chatgpt", { status: "done" });
+        setStep("claude", { status: "done" });
+        setStep("gemini", { status: "done" });
         setScoreResult(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Scoring failed");
-      } finally {
-        setLoadingStatus(null);
+        if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
+        const msg = err instanceof Error ? err.message : "Scoring failed";
+        setStep("intents", { status: "error", error: msg });
+        setStep("chatgpt", { status: "error" });
+        setStep("claude", { status: "error" });
+        setStep("gemini", { status: "error" });
+        setError(msg);
       }
-    } else {
-      setLoadingStatus(null);
     }
   }
 
-  const isLoading = loadingStatus !== null;
+  const hasStepError = steps.some((s) => s.status === "error");
+  const isRunning = steps.some((s) => s.status === "loading");
 
   return (
     <main className="min-h-screen bg-white flex flex-col">
+      {/* Progress modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Analysing your business</h2>
+              <p className="text-xs text-gray-400 mt-0.5 break-all">{url}</p>
+            </div>
+            <ul className="space-y-3">
+              {steps.map((step) => (
+                <li key={step.id} className="flex items-start gap-3">
+                  <StepIcon status={step.status} />
+                  <div className="min-w-0">
+                    <span className={`text-sm ${
+                      step.status === "pending" ? "text-gray-400" :
+                      step.status === "error"   ? "text-red-600"  : "text-gray-800"
+                    }`}>
+                      {step.label}
+                    </span>
+                    {step.error && (
+                      <p className="text-xs text-red-500 mt-1 font-mono break-words">{step.error}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {hasStepError && !isRunning && (
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="border-b border-gray-100 px-8 py-4 flex items-center justify-between">
         <span className="font-semibold text-gray-900 tracking-tight">
@@ -350,7 +476,8 @@ export default function Home() {
                     setProfile(null);
                     setScoreResult(null);
                     setError(null);
-                    setLoadingStatus(null);
+                    setSteps(INITIAL_STEPS.map((s) => ({ ...s })));
+                    setShowModal(false);
                     setRecommendations([]);
                     setRecommendationsLoading(false);
                     setRecommendationsError(false);
@@ -362,14 +489,6 @@ export default function Home() {
                   Change
                 </button>
               </div>
-
-              {/* Loading state */}
-              {isLoading && (
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-8 flex flex-col items-center gap-3 text-center">
-                  <div className="h-6 w-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
-                  <p className="text-sm text-gray-500">{loadingStatus}</p>
-                </div>
-              )}
 
               {/* Error */}
               {error && (
