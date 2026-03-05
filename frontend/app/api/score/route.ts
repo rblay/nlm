@@ -87,22 +87,24 @@ async function generateIntents(profile: BusinessProfile): Promise<string[]> {
         role: "system",
         content: `You are an expert in consumer search behaviour for local London businesses.
 
-Generate exactly 8 customer intents for the business described below. Spread them across these intent buckets to ensure strong query diversity:
-  1. Discovery — finding what's available in the area
-  2. Fit / Persona — suitability for a specific type of person
-  3. Constraints — a hard filter (price, hours, amenities) that this business ACTUALLY satisfies based on its description and services
-  4. Quality / Trust — reviews, reputation, expertise (generic — e.g. "reviews of personal trainers in the area")
-  5. Price / Value — costs, deals, free trials — only if relevant to what this business offers
-  6. Logistics / Process — booking, cancellation, contracts — grounded in how this business actually operates
-  7. Problem-based (pick 2) — a specific goal or use-case this business can solve; choose the 2 most relevant to its actual services from: ${problems}
+Generate exactly 12 customer intents for the business described below. Cover all 9 intent buckets to ensure strong query diversity:
+  1. Discovery (1 intent) — finding what's available in the area
+  2. Fit / Persona (1 intent) — suitability for a specific type of person
+  3. Constraints (1 intent) — a hard filter (price, hours, amenities) this business ACTUALLY satisfies
+  4. Quality / Trust (1 intent) — reviews, reputation, expertise — phrased generically for the area
+  5. Experience / Vibe (1 intent) — atmosphere, environment, crowding, energy
+  6. Price / Value (1 intent) — costs, deals, free trials — only if relevant to this business
+  7. Comparison (1 intent) — alternatives or comparisons in the area (e.g. "best options for X in [area]")
+  8. Logistics / Process (1 intent) — booking, cancellation, walk-ins, contracts
+  9. Problem-based (3 intents) — specific goals or use-cases this business can solve; pick the 3 most relevant from: ${problems}
 
 IMPORTANT:
-- NEVER mention the business name in any intent. Intents are generic customer questions, not about this specific business.
-- Constraints, Price/Value, and Problem-based intents must be grounded in the business's actual description and services — do not invent features the business doesn't have.
+- NEVER mention the business name in any intent — intents are generic customer questions.
+- Constraints, Price/Value, and Problem-based intents must be grounded in the business's actual description and services — do not invent features it doesn't have.
 
-Each intent is a short phrase (3–7 words). Cover all 7 buckets, with 2 intents for Problem-based.
+Each intent is a short phrase (3–7 words). Return exactly 12 strings.
 
-Return a JSON object: { "intents": ["...", ...] } — exactly 8 strings.`,
+Return a JSON object: { "intents": ["...", ...] } — exactly 12 strings.`,
       },
       {
         role: "user",
@@ -111,7 +113,7 @@ Description: ${profile.description}
 Services: ${profile.services.join(", ")}`,
       },
     ],
-    max_tokens: 350,
+    max_tokens: 500,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
   return Array.isArray(parsed.intents) ? parsed.intents : [];
@@ -140,7 +142,7 @@ Rules:
 4. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
 5. Make queries sound natural — like real things people type into ChatGPT or Google.
 
-Return a JSON object with a single key "queries" containing an array of exactly 8 strings, one per intent.`,
+Return a JSON object with a single key "queries" containing an array of exactly 12 strings, one per intent.`,
       },
       {
         role: "user",
@@ -153,7 +155,7 @@ Customer intents to turn into queries (one query each):
 ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
       },
     ],
-    max_tokens: 500,
+    max_tokens: 700,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
   return Array.isArray(parsed.queries) ? parsed.queries : [];
@@ -181,19 +183,39 @@ async function queryAnthropic(
   query: string
 ): Promise<{ response: string; latencyMs: number }> {
   const start = Date.now();
-  // web_search_20250305 is a server-side tool — Anthropic manages the search loop
-  const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 1024,
-    tools: [{ name: "web_search", type: "web_search_20250305" }],
-    messages: [{ role: "user", content: query }],
-  });
-  // Extract text blocks only (tool_use / tool_result blocks are intermediate steps)
-  const text = message.content
-    .filter((b) => b.type === "text")
-    .map((b) => ("text" in b ? b.text : ""))
-    .join("");
-  return { response: text, latencyMs: Date.now() - start };
+
+  const callAnthropic = async () => {
+    // web_search_20250305 is a server-side tool — Anthropic manages the search loop
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
+      tools: [{ name: "web_search", type: "web_search_20250305" }],
+      messages: [{ role: "user", content: query }],
+    });
+    // Extract text blocks only (tool_use / tool_result blocks are intermediate steps)
+    return message.content
+      .filter((b) => b.type === "text")
+      .map((b) => ("text" in b ? b.text : ""))
+      .join("");
+  };
+
+  try {
+    const text = await callAnthropic();
+    return { response: text, latencyMs: Date.now() - start };
+  } catch (err: unknown) {
+    // On 429, read retry-after header and wait before one retry
+    const status = (err as { status?: number })?.status;
+    if (status === 429) {
+      const headers = (err as { headers?: { get?: (k: string) => string | null } })?.headers;
+      const retryAfterRaw = headers?.get?.("retry-after") ?? "30";
+      const waitMs = Math.min(parseInt(retryAfterRaw, 10) * 1000, 60_000);
+      console.warn(`[score] Anthropic 429 — waiting ${waitMs / 1000}s before retry`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      const text = await callAnthropic();
+      return { response: text, latencyMs: Date.now() - start };
+    }
+    throw err;
+  }
 }
 
 async function queryGemini(
@@ -216,22 +238,79 @@ async function queryGemini(
 
 // ─── Detection: does the response mention this business? ─────────────────────
 
+// Generic business-type words that shouldn't count as distinctive name tokens
+const NAME_STOP_WORDS = new Set([
+  "the", "and", "of", "at", "in", "a", "an",
+  "studio", "studios", "gym", "gyms", "fitness", "health", "club", "clubs",
+  "pt", "personal", "training", "trainer", "trainers",
+  "restaurant", "restaurants", "cafe", "bar", "pub", "kitchen", "bistro",
+  "salon", "spa", "clinic", "centre", "center", "london", "ltd", "llc", "co",
+]);
+
+// Common suffixes to strip from business names to find a shorter alias
+const NAME_SUFFIXES = [
+  " personal training studio", " personal training", " pt studio",
+  " fitness studio", " fitness centre", " fitness center", " fitness club",
+  " gym", " studio", " pt", " spa", " salon", " clinic",
+  " restaurant", " cafe", " bar", " ltd", " llc",
+];
+
+function buildNameAliases(name: string): string[] {
+  const base = name.toLowerCase().trim();
+  const aliases: string[] = [base];
+
+  // Try stripping known suffixes to get a shorter brand name (e.g. "Revival PT Studio" → "Revival")
+  for (const suffix of NAME_SUFFIXES) {
+    if (base.endsWith(suffix)) {
+      const stripped = base.slice(0, -suffix.length).trim();
+      if (stripped.length > 3) {
+        aliases.push(stripped);
+      }
+      break;
+    }
+  }
+
+  // Also try meaningful multi-word tokens (filter stop words, keep words >3 chars)
+  const tokens = base
+    .split(/[\s\-&]+/)
+    .map((t) => t.replace(/[^a-z0-9]/g, ""))
+    .filter((t) => t.length > 3 && !NAME_STOP_WORDS.has(t));
+
+  if (tokens.length >= 2) {
+    // Add consecutive two-token phrases (e.g. "revival training")
+    for (let i = 0; i < tokens.length - 1; i++) {
+      aliases.push(tokens[i] + " " + tokens[i + 1]);
+    }
+  } else if (tokens.length === 1 && tokens[0].length > 4) {
+    // Single distinctive token (e.g. "revival", "gymbox") — safe if >4 chars
+    aliases.push(tokens[0]);
+  }
+
+  // Deduplicate
+  return [...new Set(aliases)];
+}
+
 function mentionsBusiness(
   response: string,
   profile: BusinessProfile,
   url: string
 ): boolean {
   const text = response.toLowerCase();
-  const name = profile.name.toLowerCase();
 
-  let domain = "";
+  // 1. Domain match (strip www. and TLD for partial match too)
   try {
-    domain = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (hostname.length > 3 && text.includes(hostname)) return true;
+    // Also check just the domain stem (e.g. "revivalptstudio" from "revivalptstudio.co.uk")
+    const stem = hostname.split(".")[0];
+    if (stem.length > 5 && text.includes(stem)) return true;
   } catch {
     // ignore malformed URL
   }
 
-  return text.includes(name) || (domain.length > 0 && text.includes(domain));
+  // 2. Name alias matching
+  const aliases = buildNameAliases(profile.name);
+  return aliases.some((alias) => text.includes(alias));
 }
 
 // ─── API route ────────────────────────────────────────────────────────────────
@@ -284,23 +363,40 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Generated ${queries.length} queries for "${profile.name}":`);
   queries.forEach((q, i) => console.log(`  ${i + 1}. ${q}`));
 
-  // 1.4 — query all 3 LLMs in parallel for every query
+  // 1.4 — query all 3 LLMs for every query
+  // OpenAI and Gemini fire all queries in parallel.
+  // Anthropic is batched in groups of 4 with a 1s gap to stay under its
+  // 50k input-tokens-per-minute and concurrent-connection rate limits.
   const allDebugEntries: DebugEntry[] = [];
+
+  const ANTHROPIC_BATCH = 3;
+  type QueryResult = PromiseSettledResult<{ response: string; latencyMs: number }>;
+  const anthropicResults = new Map<string, QueryResult>();
+
+  for (let i = 0; i < queries.length; i += ANTHROPIC_BATCH) {
+    const batch = queries.slice(i, i + ANTHROPIC_BATCH);
+    const settled = await Promise.allSettled(batch.map(queryAnthropic));
+    batch.forEach((q, idx) => anthropicResults.set(q, settled[idx]));
+    if (i + ANTHROPIC_BATCH < queries.length) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
 
   await Promise.all(
     queries.map(async (query) => {
-      const [openaiResult, anthropicResult, geminiResult] =
+      const [openaiResult, geminiResult] =
         await Promise.allSettled([
           queryOpenAI(query),
-          queryAnthropic(query),
           queryGemini(query),
         ]);
+      const anthropicResult = anthropicResults.get(query)!;
 
       const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
         { llm: "openai", settled: openaiResult },
         { llm: "anthropic", settled: anthropicResult },
         { llm: "gemini", settled: geminiResult },
       ];
+
 
       for (const { llm, settled } of results) {
         if (settled.status === "fulfilled") {
