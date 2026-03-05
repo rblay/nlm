@@ -44,6 +44,7 @@
 - **Fake data**: 4 cards — schema (code), blog post (accordion), FAQ (accordion with 8 Q&As), GBP photos (steps); matching 4 recommendations
 - **Playfair Display**: added in `layout.tsx` via `next/font/google`, CSS var `--font-playfair`; use `style={{ fontFamily: "var(--font-playfair)" }}` inline (no Tailwind class)
 - **Multi-page nav**: shared `Header` + `Footer` in `layout.tsx`; pages at `/about`, `/pricing`, `/careers`; page.tsx no longer has its own nav/footer
+- **Careers page**: three role cards (Sales, AI Engineer, Product Marketing Manager) — tagline + "We're looking for" bullets; email CTA at bottom (careers@llmrank.ai)
 - **Pricing page** (`/pricing`): three tiers — Discover $49/mo, Optimize $99/mo (highlighted, "Most popular"), Grow $199/mo; each card has tier name, price, Goal box, description, feature list, CTA; footer note "All plans start with a free scan — no card required"; data defined as a `tiers` const array at top of file
 - **About page**: hero "AI is recommending businesses. Is yours one of them?", Why GEO section (~130 words), three dark stacked panels (Measure/Recommend/Implement), CTA → `/`
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
