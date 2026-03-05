@@ -223,8 +223,8 @@ function ActionCardComponent({ action }: { action: ActionCard }) {
         <div className="flex items-start gap-2 flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-gray-900 leading-snug">{action.title}</h3>
           {action.isPlaceholder && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium whitespace-nowrap flex-shrink-0">
-              template
+            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium whitespace-nowrap flex-shrink-0">
+              template fallback
             </span>
           )}
         </div>
