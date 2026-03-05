@@ -14,27 +14,104 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
-// ─── 1.3 Step 1: Identify the most common customer intents for this business type
+// ─── 1.3 Category detection + problem dictionaries (from GEO spec) ───────────
 
-async function generateIntents(businessType: string): Promise<string[]> {
+type BusinessCategory = "fitness" | "restaurant" | "beauty" | "other";
+
+function detectCategory(businessType: string): BusinessCategory {
+  const t = businessType.toLowerCase();
+  if (/gym|fitness|studio|yoga|pilates|crossfit|boxing|hiit|spin|personal.train|pt\b/.test(t))
+    return "fitness";
+  if (/restaurant|cafe|bistro|bar|pub|food|dining|kitchen|eatery|takeaway/.test(t))
+    return "restaurant";
+  if (/spa|beauty|salon|clinic|aesthetic|massage|nail|brow|lash|facial/.test(t))
+    return "beauty";
+  return "other";
+}
+
+// Curated high-intent problem/goal queries per category (GEO spec §6)
+const PROBLEM_DICTS: Record<BusinessCategory, string[]> = {
+  fitness: [
+    "beginner weight loss",
+    "strength training for beginners",
+    "post-injury friendly training",
+    "getting fit for a marathon",
+    "low-impact workouts",
+    "stress relief and mental health",
+    "women-only classes",
+    "short workouts near work",
+    "training with a personal trainer",
+    "back-friendly workouts",
+  ],
+  restaurant: [
+    "vegan-friendly dinner",
+    "gluten-free options",
+    "quick pre-theatre meal",
+    "romantic date night",
+    "family-friendly dinner",
+    "group booking for 8–12",
+    "quiet place to have a conversation",
+    "great brunch spot",
+    "late-night food",
+    "best value lunch",
+  ],
+  beauty: [
+    "stress relief massage",
+    "back and neck tension relief",
+    "glow-up facial",
+    "facial for sensitive skin",
+    "couples spa day",
+    "pre-wedding beauty prep",
+    "long-lasting nail treatment",
+    "relaxation with sauna or steam",
+  ],
+  other: [
+    "best value option",
+    "highly rated local service",
+    "good for beginners",
+    "flexible booking",
+  ],
+};
+
+// ─── 1.3 Step 1: Generate intents spanning the 9 GEO intent buckets ──────────
+
+async function generateIntents(profile: BusinessProfile): Promise<string[]> {
+  const category = detectCategory(profile.type);
+  const problems = PROBLEM_DICTS[category].slice(0, 6).join("; ");
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: `You are an expert in consumer search behaviour. Your job is to identify the most common things potential customers want to know when searching for a local business of a given type.
+        content: `You are an expert in consumer search behaviour for local London businesses.
 
-Return the 8 most frequently searched intents — ordered from most to least common. Each intent should be a short phrase describing what the customer wants to find out (e.g. "membership prices", "class timetable", "free trial availability").
+Generate exactly 8 customer intents for the business described below. Spread them across these intent buckets to ensure strong query diversity:
+  1. Discovery — finding what's available in the area
+  2. Fit / Persona — suitability for a specific type of person
+  3. Constraints — a hard filter (price, hours, amenities) that this business ACTUALLY satisfies based on its description and services
+  4. Quality / Trust — reviews, reputation, expertise (generic — e.g. "reviews of personal trainers in the area")
+  5. Price / Value — costs, deals, free trials — only if relevant to what this business offers
+  6. Logistics / Process — booking, cancellation, contracts — grounded in how this business actually operates
+  7. Problem-based (pick 2) — a specific goal or use-case this business can solve; choose the 2 most relevant to its actual services from: ${problems}
 
-Return a JSON object with a single key "intents" containing an array of exactly 8 strings.`,
+IMPORTANT:
+- NEVER mention the business name in any intent. Intents are generic customer questions, not about this specific business.
+- Constraints, Price/Value, and Problem-based intents must be grounded in the business's actual description and services — do not invent features the business doesn't have.
+
+Each intent is a short phrase (3–7 words). Cover all 7 buckets, with 2 intents for Problem-based.
+
+Return a JSON object: { "intents": ["...", ...] } — exactly 8 strings.`,
       },
       {
         role: "user",
-        content: `Business type: ${businessType}`,
+        content: `Business type: ${profile.type}
+Description: ${profile.description}
+Services: ${profile.services.join(", ")}`,
       },
     ],
-    max_tokens: 300,
+    max_tokens: 350,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
   return Array.isArray(parsed.intents) ? parsed.intents : [];
@@ -54,13 +131,14 @@ async function generateQueries(
         role: "system",
         content: `You generate natural language queries that a potential customer would type into an AI assistant when searching for a local business — someone who does not yet know this specific business exists.
 
-You are given a list of the most common customer intents for this business type. Write one query per intent, making each query reflect that intent naturally.
+You are given a list of customer intents spanning different search motivations. Write one query per intent, reflecting that intent naturally.
 
 Rules:
 1. NEVER include the business name in any query. These are pure discovery queries.
 2. If the business has multiple locations across different areas, anchor queries to specific neighbourhoods or areas (e.g. "boxing classes in East London", "best gyms in Notting Hill") — do NOT use proximity phrasing like "near me" or "near [postcode]".
-3. If the business appears to have a single location, you may occasionally use proximity phrasing (e.g. "gyms near Hammersmith").
-4. Make queries sound natural — like real things people type into ChatGPT or Google.
+3. If the business appears to have a single location, you may use area-specific phrasing (e.g. "personal trainers in Hammersmith").
+4. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
+5. Make queries sound natural — like real things people type into ChatGPT or Google.
 
 Return a JSON object with a single key "queries" containing an array of exactly 8 strings, one per intent.`,
       },
@@ -71,7 +149,7 @@ Location / areas: ${profile.location}
 Description: ${profile.description}
 Services: ${profile.services.join(", ")}
 
-Customer intents to cover (one query each):
+Customer intents to turn into queries (one query each):
 ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
       },
     ],
@@ -172,7 +250,7 @@ export async function POST(request: NextRequest) {
   // 1.3 Step 1 — identify common customer intents for this business type
   let intents: string[];
   try {
-    intents = await generateIntents(profile.type);
+    intents = await generateIntents(profile);
   } catch (err) {
     console.error("[score] Intent generation failed:", err);
     return NextResponse.json(
@@ -181,7 +259,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log(`\n[score] Intents for "${profile.type}":`);
+  console.log(`\n[score] Intents for "${profile.name}" (${profile.type}):`);
   intents.forEach((intent, i) => console.log(`  ${i + 1}. ${intent}`));
 
   // 1.3 Step 2 — generate location-aware queries grounded in those intents
