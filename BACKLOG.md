@@ -37,6 +37,7 @@
 - Intents grounded in actual business description + services (constraints and problems never invented)
 - Queries never include the business name (pure discovery test); area-anchored for multi-location businesses; goal-first for problem/persona intents
 - Query locations are constrained to district/borough/neighbourhood level; generation prompt forbids city-wide regions and a post-processing guard rewrites/strips London-wide phrasing
+- Prompt examples now use a generic `[district]` placeholder to avoid implying any hardcoded area
 - Intents and queries both returned in `ScoreResult` and shown in the debug panel
 
 **1.4 ✅ — Query LLMs and detect business mentions**
