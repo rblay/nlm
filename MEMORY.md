@@ -23,6 +23,7 @@
 
 ### Key implementation details
 - **Query generation**: Two-step — 12 intents across 9 GEO buckets; Step 2 turns each into a location-aware discovery query (no business name, area-anchored, goal-first for problem intents)
+- **Geo scope guard**: Query prompt now enforces district/borough/neighbourhood-level locations only (no "London", "West London", etc.), and a post-generation sanitizer rewrites city-wide phrasing using `profile.location` district hints
 - **queryCount**: All 12 intents/queries generated; only top N sent to LLMs (frontend default 12, configurable 1–12)
 - **Category detection**: regex maps `businessType` → `fitness | restaurant | beauty | other`; feeds curated `PROBLEM_DICTS`
 - **Scoring**: `mentions / total_queries × 100` per LLM; overall = average across 3 LLMs
