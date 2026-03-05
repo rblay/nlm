@@ -45,6 +45,7 @@
 - **Playfair Display**: added in `layout.tsx` via `next/font/google`, CSS var `--font-playfair`; use `style={{ fontFamily: "var(--font-playfair)" }}` inline (no Tailwind class)
 - **Multi-page nav**: shared `Header` + `Footer` in `layout.tsx`; pages at `/about`, `/pricing`, `/careers`; page.tsx no longer has its own nav/footer
 - **Pricing page** (`/pricing`): three tiers — Discover $49/mo, Optimize $99/mo (highlighted, "Most popular"), Grow $199/mo; each card has tier name, price, Goal box, description, feature list, CTA; footer note "All plans start with a free scan — no card required"; data defined as a `tiers` const array at top of file
+- **About page**: hero "AI is recommending businesses. Is yours one of them?", Why GEO section (~130 words), three dark stacked panels (Measure/Recommend/Implement), CTA → `/`
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
 
 ## What's still pending (priority order)

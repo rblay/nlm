@@ -144,7 +144,8 @@ Goal: give business owners ready-to-use content and instructions based on their 
 **5.0 ✅ — Multi-page shell with header/footer nav**
 - Shared `Header` and `Footer` components added to root layout
 - Pages: LLM Score (`/`), About (`/about`), Pricing (`/pricing`), Careers (`/careers`)
-- Placeholder content on About, Pricing, Careers — to be filled out separately
+- About page content complete (feature/about-page-content): hero heading, Why GEO section, three-step Measure/Recommend/Implement panels, CTA
+- Placeholder content on Pricing, Careers — to be filled out separately
 
 **5.4 ✅ — Pricing page content**
 - Three tiers: Discover ($49/mo), Optimize ($99/mo), Grow ($199/mo)
