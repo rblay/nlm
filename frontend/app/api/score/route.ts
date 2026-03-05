@@ -200,9 +200,9 @@ Rules:
 2. Geographic scope MUST be district/borough/neighbourhood level at most (e.g. "Soho", "Hammersmith", "South Kensington", "Shoreditch").
 3. NEVER use city-wide or region-wide phrasing like "London", "Greater London", "West London", "East London", "Central London", "North London", or "South London".
 4. If the business has multiple locations, anchor each query to a specific district/borough/neighbourhood — do NOT use proximity phrasing like "near me" or "near [postcode]".
-5. If the business appears to have a single location, keep it specific to that district/borough/neighbourhood (e.g. "personal trainers in Hammersmith").
+5. If the business appears to have a single location, keep it specific to that district/borough/neighbourhood (e.g. "personal trainers in [district]").
 6. If you cannot infer a specific district/borough/neighbourhood, prefer location-neutral phrasing over city-wide phrasing.
-7. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
+7. For problem-based or persona intents, write goal-first queries (e.g. "best gym in [district] for beginner weight loss", "personal trainer in [district] for post-injury rehab").
 8. Make queries sound natural — like real things people type into ChatGPT or Google.
 
 Return a JSON object with a single key "queries" containing an array of exactly 12 strings, one per intent.`,
