@@ -48,8 +48,24 @@ GEMINI_API_KEY=...
 - Recommendations are grounded in observed signals — never recommend fixing something the business already does well
 - The debug tab (developer-facing) shows every (query, LLM, response, mentioned) tuple in a collapsible table
 
+## Collaboration — parallel workstreams
+
+Two people work on this codebase in parallel:
+- **Scores person** — owns `/api/score`, scoring pipeline, debug tab
+- **Recommendations person** — owns `/api/recommend`, recommendations UI
+
+**Shared contract**: `frontend/lib/types.ts` defines all shared types (`BusinessProfile`, `ScoreResult`, `RecommendationResult`, etc.). Both sides import from here. Do not duplicate type definitions elsewhere.
+
+**Rule**: if you need to change `frontend/lib/types.ts`, communicate to the other person before merging. When working on your own route, you can mock `BusinessProfile` to develop independently — don't wait on the other pipeline.
+
+**API split**:
+- `POST /api/analyze` — scrape URL, return `BusinessProfile` (foundation, built first)
+- `POST /api/score` — accept URL, return `ScoreResponse`
+- `POST /api/recommend` — accept URL, return `RecommendResponse`
+
 ## Git workflow
 
+- At the start of every session, ensure `main` is up to date: `git checkout main && git pull`
 - Always work on a new branch — never commit directly to `main`
 - Branch naming: `feature/<short-description>` or `fix/<short-description>`
 - When a task is complete, open a PR into `main` and summarise what changed and why
