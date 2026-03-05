@@ -39,6 +39,7 @@ export interface DebugEntry {
   mentioned: boolean;
   latencyMs: number;
   error?: boolean;
+  errorMessage?: string;
 }
 
 export interface LLMScore {

@@ -207,19 +207,25 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Generated ${queries.length} queries for "${profile.name}":`);
   queries.forEach((q, i) => console.log(`  ${i + 1}. ${q}`));
 
-  // 1.4 — query all 3 LLMs in parallel for every query
+  // 1.4 — query all 3 LLMs for every query.
+  // OpenAI and Gemini run in parallel per query; Anthropic runs sequentially
+  // across queries to avoid hitting its 50k input-token/min rate limit.
   const allDebugEntries: DebugEntry[] = [];
 
-  await Promise.all(
-    queries.map(async (query) => {
-      const [openaiResult, anthropicResult, geminiResult] =
-        await Promise.allSettled([
-          queryOpenAI(query),
-          queryAnthropic(query),
-          queryGemini(query),
-        ]);
+  const anthropicResults: PromiseSettledResult<{ response: string; latencyMs: number }>[] = [];
+  for (const query of queries) {
+    anthropicResults.push((await Promise.allSettled([queryAnthropic(query)]))[0]);
+  }
 
-      const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
+  await Promise.all(
+    queries.map(async (query, i) => {
+      const [openaiResult, geminiResult] = await Promise.allSettled([
+        queryOpenAI(query),
+        queryGemini(query),
+      ]);
+      const anthropicResult = anthropicResults[i];
+
+      const results: { llm: LLMProvider; settled: PromiseSettledResult<{ response: string; latencyMs: number }> }[] = [
         { llm: "openai", settled: openaiResult },
         { llm: "anthropic", settled: anthropicResult },
         { llm: "gemini", settled: geminiResult },
@@ -236,7 +242,8 @@ export async function POST(request: NextRequest) {
             latencyMs,
           });
         } else {
-          console.error(`[score] ${llm} failed for query "${query}":`, settled.reason);
+          const errorMessage = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
+          console.error(`[score] ${llm} failed for query "${query}":`, errorMessage);
           allDebugEntries.push({
             query,
             llm,
@@ -244,6 +251,7 @@ export async function POST(request: NextRequest) {
             mentioned: false,
             latencyMs: 0,
             error: true,
+            errorMessage,
           });
         }
       }

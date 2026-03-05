@@ -525,8 +525,10 @@ export default function Home() {
                                 </tr>
                                 {isExpanded && (
                                   <tr className="bg-gray-50 border-b border-gray-100">
-                                    <td colSpan={5} className="px-4 py-3 text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                      {entry.response || <span className="text-gray-400 italic">No response</span>}
+                                    <td colSpan={5} className="px-4 py-3 leading-relaxed whitespace-pre-wrap">
+                                      {entry.error
+                                        ? <span className="text-red-500 font-mono text-xs">{entry.errorMessage ?? "Unknown error"}</span>
+                                        : entry.response || <span className="text-gray-400 italic">No response</span>}
                                     </td>
                                   </tr>
                                 )}
