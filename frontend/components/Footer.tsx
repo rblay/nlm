@@ -21,7 +21,16 @@ export default function Footer() {
             </Link>
           ))}
         </nav>
-        <span className="text-xs text-[#1e2d4a]/40">© {new Date().getFullYear()} NLM</span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-[#1e2d4a]/40">© {new Date().getFullYear()} NLM</span>
+          <span className="text-[#1e2d4a]/20 text-xs">·</span>
+          <Link href="/?demo" className="text-xs text-[#1e2d4a]/30 hover:text-[#1e2d4a]/60 transition-colors">
+            Demo
+          </Link>
+          <Link href="/?dev" className="text-xs text-[#1e2d4a]/30 hover:text-[#1e2d4a]/60 transition-colors">
+            Dev
+          </Link>
+        </div>
       </div>
     </footer>
   );
