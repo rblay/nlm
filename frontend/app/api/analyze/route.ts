@@ -24,14 +24,77 @@ function extractSignals(html: string): ObservableSignals {
     if (matches) socialLinks.push(matches[0]);
   }
 
+  const hasFAQ =
+    /href=["'][^"']*\/faq[/"']/i.test(html) ||
+    /"@type"\s*:\s*"FAQPage"/i.test(html) ||
+    /<details[\s>]/i.test(html);
+
   return {
     hasSchema,
     hasBlog,
+    hasFAQ,
     socialLinks: [...new Set(socialLinks)],
     hasMapsEmbed,
+    hasGoogleBusinessProfile: false, // enriched later via Places API
+    gbpHasHours: false,
+    gbpPhotoCount: null,
     reviewCount: null,
     reviewRating: null,
   };
+}
+
+interface PlacesResult {
+  hasGoogleBusinessProfile: boolean;
+  gbpHasHours: boolean;
+  gbpPhotoCount: number | null;
+  reviewCount: number | null;
+  reviewRating: number | null;
+}
+
+const PLACES_FALLBACK: PlacesResult = {
+  hasGoogleBusinessProfile: false,
+  gbpHasHours: false,
+  gbpPhotoCount: null,
+  reviewCount: null,
+  reviewRating: null,
+};
+
+async function lookupGooglePlace(name: string, location: string): Promise<PlacesResult> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return PLACES_FALLBACK;
+
+  const query = [name, location].filter(Boolean).join(" ");
+  try {
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.regularOpeningHours,places.photos",
+      },
+      body: JSON.stringify({ textQuery: query, pageSize: 1 }),
+    });
+
+    if (!res.ok) {
+      console.warn(`[analyze] Places API error: ${res.status}`);
+      return PLACES_FALLBACK;
+    }
+
+    const data = await res.json();
+    const place = data.places?.[0];
+    if (!place) return PLACES_FALLBACK;
+
+    return {
+      hasGoogleBusinessProfile: true,
+      gbpHasHours: !!place.regularOpeningHours,
+      gbpPhotoCount: Array.isArray(place.photos) ? place.photos.length : null,
+      reviewCount: place.userRatingCount ?? null,
+      reviewRating: place.rating ?? null,
+    };
+  } catch (err) {
+    console.warn("[analyze] Places API lookup failed:", err);
+    return PLACES_FALLBACK;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -95,13 +158,24 @@ Return a JSON object with exactly these fields:
     return NextResponse.json({ error: "Failed to analyse business — check your OPENAI_API_KEY" }, { status: 500 });
   }
 
+  // Enrich signals with real Google Places data (non-blocking — falls back gracefully if key is missing)
+  const placesData = await lookupGooglePlace(extracted.name ?? "", extracted.location ?? "");
+  const enrichedSignals = {
+    ...signals,
+    hasGoogleBusinessProfile: placesData.hasGoogleBusinessProfile,
+    gbpHasHours: placesData.gbpHasHours,
+    gbpPhotoCount: placesData.gbpPhotoCount,
+    reviewCount: placesData.reviewCount,
+    reviewRating: placesData.reviewRating,
+  };
+
   const profile: BusinessProfile = {
     name: extracted.name ?? "",
     type: extracted.type ?? "",
     location: extracted.location ?? "",
     description: extracted.description ?? "",
     services: extracted.services ?? [],
-    signals,
+    signals: enrichedSignals,
   };
 
   console.log("\n========== BUSINESS PROFILE ==========");

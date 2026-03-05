@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { BusinessProfile } from "@/lib/types";
+import type { BusinessProfile, Recommendation, RecommendationImpact } from "@/lib/types";
 
 const FAKE_SCORES = {
   overall: 62,
@@ -30,6 +30,32 @@ function ScoreBar({ label, score, color }: { label: string; score: number; color
   );
 }
 
+const IMPACT_STYLES: Record<RecommendationImpact, string> = {
+  High: "bg-red-50 text-red-700",
+  Medium: "bg-yellow-50 text-yellow-700",
+  Low: "bg-gray-100 text-gray-600",
+};
+
+function RecommendationCard({ rec }: { rec: Recommendation }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-sm font-semibold text-gray-900 leading-snug">{rec.title}</h3>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${IMPACT_STYLES[rec.impact]}`}>
+          {rec.impact} impact
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed">{rec.whyItMatters}</p>
+      <div className="text-xs text-gray-400 bg-gray-50 rounded-md px-3 py-2 leading-relaxed">
+        <span className="font-medium text-gray-500">Observed: </span>{rec.observed}
+      </div>
+      <div className="text-xs bg-blue-50 text-blue-800 rounded-md px-3 py-2 leading-relaxed">
+        <span className="font-medium">First action: </span>{rec.firstAction}
+      </div>
+    </div>
+  );
+}
+
 function ScoreLabel(score: number): { label: string; color: string } {
   if (score >= 80) return { label: "Excellent", color: "text-green-600" };
   if (score >= 60) return { label: "Fair", color: "text-yellow-600" };
@@ -43,6 +69,9 @@ export default function Home() {
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +80,9 @@ export default function Home() {
     setLoading(true);
     setProfile(null);
     setError(null);
+    setRecommendations([]);
+    setRecommendationsLoading(false);
+    setRecommendationsError(false);
 
     try {
       const res = await fetch("/api/analyze", {
@@ -65,6 +97,20 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Analysis failed");
       setProfile(data.profile);
+
+      // Kick off recommendations in the background after profile is ready
+      setRecommendationsLoading(true);
+      fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: data.profile }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.recommendations) setRecommendations(d.recommendations);
+        })
+        .catch(() => setRecommendationsError(true))
+        .finally(() => setRecommendationsLoading(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -129,7 +175,7 @@ export default function Home() {
                 <span className="text-blue-500 text-base">🔗</span>
                 <p className="text-sm text-blue-700 break-all flex-1">{url}</p>
                 <button
-                  onClick={() => { setSubmitted(false); setProfile(null); setError(null); }}
+                  onClick={() => { setSubmitted(false); setProfile(null); setError(null); setRecommendations([]); setRecommendationsLoading(false); setRecommendationsError(false); }}
                   className="text-xs text-blue-400 hover:text-blue-600 whitespace-nowrap"
                 >
                   Change
@@ -195,8 +241,14 @@ export default function Home() {
                       {[
                         { label: "Schema markup", active: profile.signals.hasSchema },
                         { label: "Blog / News", active: profile.signals.hasBlog },
+                        { label: "FAQ page", active: profile.signals.hasFAQ },
                         { label: "Social links", active: profile.signals.socialLinks.length > 0 },
-                        { label: "Google Maps link", active: profile.signals.hasMapsEmbed },
+                        { label: "Google Maps embed", active: profile.signals.hasMapsEmbed },
+                        { label: "Google Business Profile", active: profile.signals.hasGoogleBusinessProfile },
+                        ...(profile.signals.hasGoogleBusinessProfile ? [
+                          { label: "GBP hours set", active: profile.signals.gbpHasHours },
+                          { label: `GBP photos (${profile.signals.gbpPhotoCount ?? 0})`, active: (profile.signals.gbpPhotoCount ?? 0) >= 10 },
+                        ] : []),
                       ].map(({ label, active }) => (
                         <span
                           key={label}
@@ -229,6 +281,31 @@ export default function Home() {
                       {JSON.stringify(profile, null, 2)}
                     </pre>
                   )}
+                </div>
+              )}
+
+              {/* Recommendations section */}
+              {profile && recommendationsError && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-5 py-3">
+                  <p className="text-xs text-red-500">Could not generate recommendations — check your OPENAI_API_KEY.</p>
+                </div>
+              )}
+              {profile && (recommendationsLoading || recommendations.length > 0) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                      Recommendations
+                    </p>
+                    {recommendationsLoading && (
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin" />
+                        Analysing gaps...
+                      </div>
+                    )}
+                  </div>
+                  {recommendations.map((rec, i) => (
+                    <RecommendationCard key={i} rec={rec} />
+                  ))}
                 </div>
               )}
 

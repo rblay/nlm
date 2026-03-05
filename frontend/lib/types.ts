@@ -5,12 +5,16 @@
 // ─── Business extraction (shared foundation) ─────────────────────────────────
 
 export interface ObservableSignals {
-  hasSchema: boolean;          // <script type="application/ld+json"> present
-  hasBlog: boolean;            // /blog or /news link found
-  socialLinks: string[];       // absolute URLs to social profiles
-  hasMapsEmbed: boolean;       // Google Maps embed or GBP link present
-  reviewCount: number | null;  // visible review count, null if not detectable
-  reviewRating: number | null; // visible rating (0–5), null if not detectable
+  hasSchema: boolean;                  // <script type="application/ld+json"> present
+  hasBlog: boolean;                    // /blog or /news link found
+  hasFAQ: boolean;                     // /faq link or FAQ schema detected on the website
+  socialLinks: string[];               // absolute URLs to social profiles
+  hasMapsEmbed: boolean;               // Google Maps embed or GBP link present on the website
+  hasGoogleBusinessProfile: boolean;   // confirmed via Google Places API lookup
+  gbpHasHours: boolean;                // GBP listing has opening hours set
+  gbpPhotoCount: number | null;        // number of photos on the GBP listing
+  reviewCount: number | null;          // from Google Places API, or visible on page if Places unavailable
+  reviewRating: number | null;         // from Google Places API, or visible on page if Places unavailable
 }
 
 export interface BusinessProfile {
