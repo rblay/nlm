@@ -23,15 +23,21 @@ async function generateQueries(profile: BusinessProfile): Promise<string[]> {
     messages: [
       {
         role: "system",
-        content: `You generate natural language queries that real customers would ask an AI assistant when looking for a local business.
-Generate exactly 8 queries that vary in phrasing, intent, and specificity — mix broad ("best gyms in London") and narrow ("personal trainer near W6 with evening classes").
-Return a JSON object with a single key "queries" containing an array of 8 strings.`,
+        content: `You generate natural language queries that a potential customer would ask an AI assistant when searching for a local business — someone who does not yet know this business exists and is trying to discover it.
+
+Rules:
+1. NEVER include the business name in any query. These are discovery queries from someone who has never heard of it.
+2. If the business has multiple locations across different areas or cities, write queries anchored to specific neighbourhoods or areas (e.g. "best gyms in Notting Hill", "boxing classes in East London") — do NOT use proximity phrasing like "near me" or "near [postcode]" since that is ambiguous for multi-location businesses.
+3. If the business appears to have a single location, you may mix area-based queries with a small number of proximity-style queries (e.g. "gyms near Hammersmith").
+4. Vary phrasing, intent, and specificity across the 8 queries — mix broad category searches with specific service or feature searches.
+5. Make queries sound natural, like real things people type into ChatGPT or Google.
+
+Return a JSON object with a single key "queries" containing an array of exactly 8 strings.`,
       },
       {
         role: "user",
-        content: `Business name: ${profile.name}
-Type: ${profile.type}
-Location: ${profile.location}
+        content: `Business type: ${profile.type}
+Location / areas: ${profile.location}
 Description: ${profile.description}
 Services: ${profile.services.join(", ")}`,
       },
