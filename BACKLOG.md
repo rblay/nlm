@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, PR #8)
+## Current State (as of March 2026, PR #11)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -9,6 +9,9 @@
 - `/api/score` is live — two-step intent-driven query generation + real LLM queries with live web search
 - Frontend shows: business profile card, signals grid, real per-LLM scores, recommendation cards, scoring debug panel
 - All three LLMs working: OpenAI (gpt-4o-mini), Anthropic (claude-haiku-4-5), Google (gemini-2.5-flash)
+- Query count configurable via `queryCount` param on `/api/score` (default 3 to reduce token burn)
+- Anthropic calls run sequentially to avoid 50k token/min rate limit; OpenAI + Gemini run in parallel
+- Failed LLM calls show red "error" badge + error message in debug table
 
 ---
 
@@ -30,12 +33,12 @@
 - Intents and queries both returned in `ScoreResult` and shown in the debug panel
 
 **1.4 ✅ — Query LLMs and detect business mentions**
-- All three LLMs queried in parallel with live web search enabled
-- OpenAI: gpt-4o-mini via Responses API + web_search tool
-- Anthropic: claude-haiku-4-5 + web_search_20250305 server-side tool
-- Google: gemini-2.5-flash via @google/genai SDK + googleSearch grounding
+- OpenAI: gpt-4o-mini via Responses API + web_search tool (parallel)
+- Anthropic: claude-haiku-4-5 + web_search_20250305 server-side tool (sequential to avoid rate limits)
+- Google: gemini-2.5-flash via @google/genai SDK + googleSearch grounding (parallel)
 - Detection: case-insensitive match of business name or domain in response
 - Score per LLM = mentions / total queries × 100; overall = average across LLMs
+- Failed calls surface error message in debug table
 
 **1.5 ✅ — Wire real scores to the UI**
 - Real scores from `/api/score` replace hardcoded `FAKE_SCORES`
