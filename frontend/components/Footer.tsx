@@ -24,12 +24,12 @@ export default function Footer() {
         <div className="flex items-center gap-4">
           <span className="text-xs text-[#1e2d4a]/40">© {new Date().getFullYear()} NLM</span>
           <span className="text-[#1e2d4a]/20 text-xs">·</span>
-          <Link href="/?demo" className="text-xs text-[#1e2d4a]/30 hover:text-[#1e2d4a]/60 transition-colors">
+          <a href="/?demo" className="text-xs text-[#1e2d4a]/30 hover:text-[#1e2d4a]/60 transition-colors">
             Demo
-          </Link>
-          <Link href="/?dev" className="text-xs text-[#1e2d4a]/30 hover:text-[#1e2d4a]/60 transition-colors">
+          </a>
+          <a href="/?dev" className="text-xs text-[#1e2d4a]/30 hover:text-[#1e2d4a]/60 transition-colors">
             Dev
-          </Link>
+          </a>
         </div>
       </div>
     </footer>
