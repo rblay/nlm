@@ -69,6 +69,9 @@ Two people work on this codebase in parallel:
 - At the start of every session, ensure `main` is up to date: `git checkout main && git pull`
 - Always work on a new branch — never commit directly to `main`
 - Branch naming: `feature/<short-description>` or `fix/<short-description>`
+- Before opening a PR, always:
+  1. Update `BACKLOG.md` to reflect what's done and what's still pending
+  2. Update `MEMORY.md` to reflect the new current state
 - When a task is complete, open a PR into `main` and summarise what changed and why
 - Do not merge the PR yourself — leave it for the user to review and merge
 
