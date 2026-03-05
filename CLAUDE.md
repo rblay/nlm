@@ -40,7 +40,7 @@ GOOGLE_PLACES_API_KEY=...   # Places API (New) — enables real GBP and review d
 ## LLMs used
 
 - OpenAI `gpt-4o-mini` — business extraction, query generation, recommendation generation
-- OpenAI `gpt-4o-mini`, Anthropic `claude-haiku-4-5`, Google `gemini-1.5-flash` — the three LLMs queried for presence scoring
+- OpenAI `gpt-4o-mini`, Anthropic `claude-haiku-4-5`, Google `gemini-2.5-flash` — the three LLMs queried for presence scoring
 
 ## Key conventions
 
@@ -68,12 +68,19 @@ Two people work on this codebase in parallel:
 
 - At the start of every session, ensure `main` is up to date: `git checkout main && git pull`
 - Always work on a new branch — never commit directly to `main`
-- Branch naming: `feature/<short-description>` or `fix/<short-description>`
-- Before opening a PR, always:
-  1. Update `BACKLOG.md` to reflect what's done and what's still pending
-  2. Update `MEMORY.md` to reflect the new current state
+- Branch naming: `feature/<short-description>`, `fix/<short-description>`, or `chore/<short-description>`
 - When a task is complete, open a PR into `main` and summarise what changed and why
 - Do not merge the PR yourself — leave it for the user to review and merge
+
+## ⚠️ MANDATORY PR checklist — do this before EVERY PR, no exceptions
+
+Before running `gh pr create`, you MUST complete all three steps in order:
+
+1. **Update `BACKLOG.md`** — update the Current State section and mark any newly completed tasks
+2. **Update `MEMORY.md`** — update current state, move completed items, note anything still pending
+3. **Commit both files** on the same branch before opening the PR
+
+This is not optional. Do not open a PR without completing these steps first.
 
 ## Backlog
 
