@@ -137,10 +137,11 @@ You are given a list of customer intents spanning different search motivations. 
 
 Rules:
 1. NEVER include the business name in any query. These are pure discovery queries.
-2. If the business has multiple locations across different areas, anchor queries to specific neighbourhoods or areas (e.g. "boxing classes in East London", "best gyms in Notting Hill") — do NOT use proximity phrasing like "near me" or "near [postcode]".
-3. If the business appears to have a single location, you may use area-specific phrasing (e.g. "personal trainers in Hammersmith").
-4. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Hammersmith for post-injury rehab").
-5. Make queries sound natural — like real things people type into ChatGPT or Google.
+2. Always anchor queries to a specific London borough or neighbourhood (e.g. Hammersmith, Soho, Shoreditch, South Kensington, Clapham). NEVER use "London" alone as the location — it is too broad and unrealistic.
+3. For multi-location businesses, vary the neighbourhood across queries. For single-location businesses, use the same neighbourhood consistently.
+4. NEVER use proximity phrasing like "near me" or "near [postcode]".
+5. For problem-based or persona intents, write goal-first queries (e.g. "best gym in Hammersmith for beginner weight loss", "personal trainer in Shoreditch for post-injury rehab").
+6. Make queries sound natural — like real things people type into ChatGPT or Google.
 
 Return a JSON object with a single key "queries" containing an array of exactly 12 strings, one per intent.`,
       },
