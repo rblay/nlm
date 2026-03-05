@@ -510,21 +510,25 @@ export default function Home() {
                                   <td className="px-4 py-2 text-gray-600 max-w-xs truncate">{entry.query}</td>
                                   <td className="px-4 py-2 text-gray-500">{meta.label}</td>
                                   <td className="px-4 py-2">
-                                    {entry.mentioned ? (
+                                    {entry.error ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium">error</span>
+                                    ) : entry.mentioned ? (
                                       <span className="px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium">yes</span>
                                     ) : (
                                       <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">no</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-2 text-gray-400 font-mono">
-                                    {entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
+                                    {entry.error ? "—" : entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
                                   </td>
                                   <td className="px-4 py-2 text-gray-400">{isExpanded ? "▲" : "▼"}</td>
                                 </tr>
                                 {isExpanded && (
                                   <tr className="bg-gray-50 border-b border-gray-100">
-                                    <td colSpan={5} className="px-4 py-3 text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                      {entry.response || <span className="text-gray-400 italic">No response</span>}
+                                    <td colSpan={5} className="px-4 py-3 leading-relaxed whitespace-pre-wrap">
+                                      {entry.error
+                                        ? <span className="text-red-500 font-mono text-xs">{entry.errorMessage ?? "Unknown error"}</span>
+                                        : entry.response || <span className="text-gray-400 italic">No response</span>}
                                     </td>
                                   </tr>
                                 )}
