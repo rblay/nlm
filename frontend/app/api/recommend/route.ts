@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
   }
 
   const signalSummary = [
+    `Page title tag: ${profile.signals.titleTag ? `"${profile.signals.titleTag}"` : "missing"}`,
+    `Meta description: ${profile.signals.hasMetaDescription ? "present" : "missing"}`,
     `Schema.org / JSON-LD markup on website: ${profile.signals.hasSchema ? "detected" : "not detected"}`,
     `Blog or news section on website: ${profile.signals.hasBlog ? "detected" : "not detected"}`,
     `FAQ page or FAQ schema on website: ${profile.signals.hasFAQ ? "detected" : "not detected"}`,
@@ -58,11 +60,12 @@ The categories to consider (only flag gaps):
 1. Google Business Profile — we have confirmed via the Google Places API whether a GBP exists. If not found, recommend creating one. If found, skip this category entirely and focus on other gaps.
 2. Schema.org markup — LocalBusiness/Organization JSON-LD makes the business machine-readable
 3. Review volume and recency — we have the real Google review count and rating from the Places API. If review count is low (under 50) or rating is below 4.0, flag it. If reviews are strong (50+ reviews, 4.0+), skip this category. If data is unavailable, do not make assumptions.
-4. Website content quality — clear service descriptions, location pages, FAQs. If no FAQ detected, recommend adding one as LLMs pull heavily from Q&A content.
-5. Blog / fresh content — regular publishing signals an active, relevant business
-6. Social presence — active social profiles feed LLM training data
-7. GBP completeness — opening hours and photos on the GBP listing improve local ranking and LLM data quality. Flag missing hours or low photo count (under 10) as separate gaps if GBP exists.
-8. Local directory citations — Yelp, TripAdvisor, Foursquare listings`,
+4. Page title and meta description — LLMs use these as the primary signal for what a page is about when crawling. A missing or vague title/description means the page may be misrepresented or skipped. Flag if missing.
+5. Website content quality — clear service descriptions, location pages, FAQs. If no FAQ detected, recommend adding one as LLMs pull heavily from Q&A content.
+6. Blog / fresh content — regular publishing signals an active, relevant business
+7. Social presence — active social profiles feed LLM training data
+8. GBP completeness — opening hours and photos on the GBP listing improve local ranking and LLM data quality. Flag missing hours or low photo count (under 10) as separate gaps if GBP exists.
+9. Local directory citations — Yelp, TripAdvisor, Foursquare listings`,
         },
         {
           role: "user",

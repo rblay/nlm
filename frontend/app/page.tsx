@@ -239,6 +239,8 @@ export default function Home() {
                     <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Signals detected</p>
                     <div className="flex flex-wrap gap-2">
                       {[
+                        { label: "Title tag", active: !!profile.signals.titleTag },
+                        { label: "Meta description", active: profile.signals.hasMetaDescription },
                         { label: "Schema markup", active: profile.signals.hasSchema },
                         { label: "Blog / News", active: profile.signals.hasBlog },
                         { label: "FAQ page", active: profile.signals.hasFAQ },

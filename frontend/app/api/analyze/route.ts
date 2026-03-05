@@ -9,6 +9,13 @@ function extractSignals(html: string): ObservableSignals {
   const hasBlog = /href=["'][^"']*\/(blog|news)[/"']/i.test(html);
   const hasMapsEmbed = /maps\.google\.com|google\.com\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(html);
 
+  const metaDescMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+  const hasMetaDescription = !!(metaDescMatch?.[1]?.trim());
+
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const titleTag = titleMatch?.[1]?.trim() ?? null;
+
   const socialPatterns: RegExp[] = [
     /https?:\/\/(www\.)?(facebook\.com|fb\.com)\/[^\s"'<>]+/gi,
     /https?:\/\/(www\.)?twitter\.com\/[^\s"'<>]+/gi,
@@ -33,6 +40,8 @@ function extractSignals(html: string): ObservableSignals {
     hasSchema,
     hasBlog,
     hasFAQ,
+    hasMetaDescription,
+    titleTag,
     socialLinks: [...new Set(socialLinks)],
     hasMapsEmbed,
     hasGoogleBusinessProfile: false, // enriched later via Places API
