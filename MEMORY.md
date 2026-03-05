@@ -32,7 +32,7 @@
 - **Shared types**: `frontend/lib/types.ts`
 - **Google SDK**: `@google/genai` (NOT `@google/generative-ai`); model: `gemini-2.5-flash`
 
-### UI (feature/ui-overhaul, PR #20)
+### UI (feature/multi-page-nav, PR #21)
 - **Theme**: light — `#ece8e1` cream bg, `#1e2d4a` deep navy text/accent, white cards, Playfair Display serif headings
 - **Hero**: "Can people find you on LLMs?" / tagline "Translating your business value into AI visibility"
 - **Pre-submit**: Analyze/Measure/Improve steps shown; hidden after submission
@@ -42,10 +42,11 @@
 - **Lead capture modal**: email input only, dummy form, success state confirmation; shared by score card and carousel cards
 - **Flip card CSS**: in `globals.css` — `.flip-container`, `.flip-card-inner.is-flipped`, `.flip-card-face`, `.flip-card-back`; overflow-y on inner content divs, not the face
 - **Fake data**: 4 cards — schema (code), blog post (accordion), FAQ (accordion with 8 Q&As), GBP photos (steps); matching 4 recommendations
-- **Playfair Display**: added in `layout.tsx` via `next/font/google`, CSS var `--font-playfair`
+- **Playfair Display**: added in `layout.tsx` via `next/font/google`, CSS var `--font-playfair`; use `style={{ fontFamily: "var(--font-playfair)" }}` inline (no Tailwind class)
+- **Multi-page nav**: shared `Header` + `Footer` in `layout.tsx`; pages at `/about`, `/pricing`, `/careers` (placeholders); page.tsx no longer has its own nav/footer
+- **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
 
 ## What's still pending (priority order)
-- **3.3** — Move testing/debug controls to a separate Developer tab before demo
 - **5.1** — Make loading steps sequential in user-facing flow
 - **1.6 / 5.2** — Graceful error handling (URL unreachable, LLM timeouts, partial results)
 - **README** — Technical overview for graders

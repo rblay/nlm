@@ -555,6 +555,9 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const intentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  const [devMode] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev")
+  );
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -817,13 +820,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Nav */}
-      <nav className="px-8 py-5 flex items-center border-b border-[#1e2d4a]/[0.08]">
-        <span className="font-bold text-[#1e2d4a] text-xl tracking-tight" style={{ fontFamily: "var(--font-playfair)" }}>
-          NLM
-        </span>
-      </nav>
-
       {/* Main */}
       <div className="flex-1 flex flex-col items-center px-4 py-20">
         <div className="max-w-xl w-full text-center space-y-6">
@@ -861,31 +857,33 @@ export default function Home() {
                     Analyze →
                   </button>
                 </div>
-                <div className="flex items-center gap-3 px-1 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#9aa3af] whitespace-nowrap">Testing mode</span>
-                    <select
-                      value={testingMode}
-                      onChange={(e) => setTestingMode(e.target.value as TestingMode)}
-                      className="text-xs border border-[#1e2d4a]/15 rounded-lg px-2 py-1.5 text-[#6b7a8d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/20"
-                    >
-                      <option value="all">All</option>
-                      <option value="score-only">LLM Score Only</option>
-                      <option value="rec-only">Recommendations + Actions Only</option>
-                      <option value="fake">Fake Data</option>
-                    </select>
-                  </div>
-                  {(testingMode === "all" || testingMode === "score-only") && (
+                {devMode && (
+                  <div className="flex items-center gap-3 px-1 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-[#9aa3af] whitespace-nowrap">Queries per LLM</span>
-                      <input
-                        type="number" min={1} max={12} value={queryCount}
-                        onChange={(e) => setQueryCount(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
-                        className="w-16 text-xs border border-[#1e2d4a]/15 rounded-lg px-2 py-1.5 text-center text-[#6b7a8d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/20"
-                      />
+                      <span className="text-xs text-[#9aa3af] whitespace-nowrap">Testing mode</span>
+                      <select
+                        value={testingMode}
+                        onChange={(e) => setTestingMode(e.target.value as TestingMode)}
+                        className="text-xs border border-[#1e2d4a]/15 rounded-lg px-2 py-1.5 text-[#6b7a8d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/20"
+                      >
+                        <option value="all">All</option>
+                        <option value="score-only">LLM Score Only</option>
+                        <option value="rec-only">Recommendations + Actions Only</option>
+                        <option value="fake">Fake Data</option>
+                      </select>
                     </div>
-                  )}
-                </div>
+                    {(testingMode === "all" || testingMode === "score-only") && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[#9aa3af] whitespace-nowrap">Queries per LLM</span>
+                        <input
+                          type="number" min={1} max={12} value={queryCount}
+                          onChange={(e) => setQueryCount(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
+                          className="w-16 text-xs border border-[#1e2d4a]/15 rounded-lg px-2 py-1.5 text-center text-[#6b7a8d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/20"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </form>
 
               {/* Analyze, Measure, Improve */}
@@ -1174,7 +1172,7 @@ export default function Home() {
               )}
 
               {/* ── Debug panel ── */}
-              {scoreResult && (
+              {devMode && scoreResult && (
                 <div className="rounded-2xl border border-[#1e2d4a]/10 overflow-hidden shadow-sm">
                   <button
                     onClick={() => setDebugOpen((o) => !o)}
@@ -1270,10 +1268,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-[#1e2d4a]/[0.08] py-6 text-center text-xs text-[#9aa3af]">
-        NLM · {new Date().getFullYear()}
-      </footer>
     </main>
   );
 }
