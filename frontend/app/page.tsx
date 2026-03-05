@@ -71,7 +71,7 @@ const FAKE_SCORE_RESULT: ScoreResult = {
 
 const FAKE_RECOMMENDATIONS: Recommendation[] = [
   { title: "Add Schema.org markup", whyItMatters: "Without structured data, AI models struggle to extract accurate business details from your website.", observed: "No JSON-LD schema detected.", impact: "High", firstAction: "Add a LocalBusiness JSON-LD snippet to your homepage <head>." },
-  { title: "Publish a blog or news section", whyItMatters: "Fresh content signals authority to LLMs, increasing the chance you're cited.", observed: "No blog or news section detected.", impact: "High", firstAction: "Write 2–3 posts covering common customer questions." },
+  { title: "Publish a blog or news section", whyItMatters: "Fresh content signals authority to LLMs, increasing the chance you're cited.", observed: "No blog or news section detected.", impact: "High", firstAction: "Write 2-3 posts covering common customer questions." },
   { title: "Add more Google Business Profile photos", whyItMatters: "Listings with 10+ photos rank higher in local packs.", observed: "Only 4 photos on GBP (target: 10+).", impact: "Medium", firstAction: "Upload at least 6 more photos: studio interior, trainers in action, equipment." },
 ];
 
@@ -96,21 +96,21 @@ type StepStatus = "pending" | "loading" | "done" | "error";
 type PipelineStep = { id: string; label: string; status: StepStatus; error?: string };
 
 const INITIAL_STEPS: PipelineStep[] = [
-  { id: "analyze",   label: "Extracting business from URL",    status: "pending" },
-  { id: "intents",   label: "Analysing key customer intent",   status: "pending" },
-  { id: "chatgpt",   label: "Calculating ChatGPT visibility",  status: "pending" },
-  { id: "claude",    label: "Calculating Claude visibility",   status: "pending" },
-  { id: "gemini",    label: "Calculating Gemini visibility",   status: "pending" },
-  { id: "recommend", label: "Generating recommendations",      status: "pending" },
-  { id: "actions",   label: "Suggesting relevant actions",     status: "pending" },
+  { id: "analyze",   label: "Reading your website",             status: "pending" },
+  { id: "intents",   label: "Analysing key customer intent",    status: "pending" },
+  { id: "chatgpt",   label: "Calculating ChatGPT visibility",   status: "pending" },
+  { id: "claude",    label: "Calculating Claude visibility",    status: "pending" },
+  { id: "gemini",    label: "Calculating Gemini visibility",    status: "pending" },
+  { id: "recommend", label: "Generating recommendations",       status: "pending" },
+  { id: "actions",   label: "Suggesting relevant actions",      status: "pending" },
 ];
 
 function StepIcon({ status }: { status: StepStatus }) {
   if (status === "loading")
-    return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />;
+    return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-[#C9A644] border-t-transparent animate-spin" />;
   if (status === "done")
     return (
-      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-green-500 flex items-center justify-center">
+      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-green-600 flex items-center justify-center">
         <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M2 5l2.5 2.5L8 3" />
         </svg>
@@ -118,28 +118,28 @@ function StepIcon({ status }: { status: StepStatus }) {
     );
   if (status === "error")
     return (
-      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-red-500 flex items-center justify-center">
+      <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full bg-red-600 flex items-center justify-center">
         <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l4 4M7 3l-4 4" />
         </svg>
       </div>
     );
-  return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-gray-200" />;
+  return <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border-2 border-white/20" />;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const LLM_META: Record<LLMProvider, { label: string; color: string }> = {
-  openai: { label: "ChatGPT", color: "bg-green-500" },
-  anthropic: { label: "Claude", color: "bg-blue-500" },
-  gemini: { label: "Gemini", color: "bg-yellow-500" },
+  openai:    { label: "ChatGPT", color: "bg-green-500" },
+  anthropic: { label: "Claude",  color: "bg-blue-500"  },
+  gemini:    { label: "Gemini",  color: "bg-[#C9A644]" },
 };
 
 function scoreLabel(score: number): { label: string; color: string } {
-  if (score >= 80) return { label: "Excellent", color: "text-green-600" };
-  if (score >= 60) return { label: "Good", color: "text-yellow-600" };
-  if (score >= 40) return { label: "Fair", color: "text-orange-500" };
-  return { label: "Poor", color: "text-red-500" };
+  if (score >= 80) return { label: "Excellent", color: "text-green-400" };
+  if (score >= 60) return { label: "Good",      color: "text-[#C9A644]" };
+  if (score >= 40) return { label: "Fair",       color: "text-orange-400" };
+  return { label: "Poor", color: "text-red-400" };
 }
 
 function ScoreBar({
@@ -156,19 +156,17 @@ function ScoreBar({
   total?: number;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-gray-500">
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs text-gray-400">
         <span>{label}</span>
-        <span className="font-medium text-gray-700">
+        <span className="font-medium text-gray-300">
           {score}/100
           {mentions !== undefined && total !== undefined && (
-            <span className="text-gray-400 font-normal ml-1">
-              ({mentions}/{total} queries)
-            </span>
+            <span className="text-gray-600 font-normal ml-1">({mentions}/{total})</span>
           )}
         </span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${color} transition-all duration-700`}
           style={{ width: `${score}%` }}
@@ -179,85 +177,119 @@ function ScoreBar({
 }
 
 const IMPACT_STYLES: Record<RecommendationImpact, string> = {
-  High: "bg-red-50 text-red-700",
-  Medium: "bg-yellow-50 text-yellow-700",
-  Low: "bg-gray-100 text-gray-600",
+  High:   "bg-red-900/30 text-red-400 border border-red-800/30",
+  Medium: "bg-amber-900/30 text-amber-400 border border-amber-800/30",
+  Low:    "bg-white/[0.06] text-gray-400 border border-white/10",
 };
 
-function RecommendationCard({ rec }: { rec: Recommendation }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-semibold text-gray-900 leading-snug">{rec.title}</h3>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${IMPACT_STYLES[rec.impact]}`}>
-          {rec.impact} impact
-        </span>
-      </div>
-      <p className="text-xs text-gray-500 leading-relaxed">{rec.whyItMatters}</p>
-      <div className="text-xs text-gray-400 bg-gray-50 rounded-md px-3 py-2 leading-relaxed">
-        <span className="font-medium text-gray-500">Observed: </span>{rec.observed}
-      </div>
-      <div className="text-xs bg-blue-50 text-blue-800 rounded-md px-3 py-2 leading-relaxed">
-        <span className="font-medium">First action: </span>{rec.firstAction}
-      </div>
-    </div>
-  );
-}
+// ─── Flip Card (Improvement) ──────────────────────────────────────────────────
 
-function ActionCardComponent({ action }: { action: ActionCard }) {
+function ImprovementFlipCard({
+  recommendation,
+  action,
+  isFlipped,
+  onFlip,
+}: {
+  recommendation: Recommendation;
+  action?: ActionCard;
+  isFlipped: boolean;
+  onFlip: () => void;
+}) {
   const [copied, setCopied] = React.useState(false);
 
   function handleCopy() {
+    if (!action) return;
     navigator.clipboard.writeText(action.content).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   }
 
-  const isCode = action.contentType === "code";
-  const isSteps = action.contentType === "steps";
-
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2 flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-gray-900 leading-snug">{action.title}</h3>
-          {action.isPlaceholder && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium whitespace-nowrap flex-shrink-0">
-              template fallback
+    <div className="flip-container w-full" style={{ height: "420px" }}>
+      <div className={`flip-card-inner w-full h-full${isFlipped ? " is-flipped" : ""}`}>
+
+        {/* Front: Problem */}
+        <div className="flip-card-face flip-card-front bg-[#131720] border border-white/[0.08] rounded-2xl p-6 flex flex-col">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <h3 className="text-white font-semibold text-base leading-snug">
+              {recommendation.title}
+            </h3>
+            <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap font-medium flex-shrink-0 ${IMPACT_STYLES[recommendation.impact]}`}>
+              {recommendation.impact}
             </span>
+          </div>
+          <p className="text-gray-400 text-sm leading-relaxed mb-4">
+            {recommendation.whyItMatters}
+          </p>
+          <div className="text-xs text-gray-500 bg-white/[0.04] rounded-xl px-4 py-3 leading-relaxed">
+            <span className="text-gray-400 font-medium">Observed: </span>
+            {recommendation.observed}
+          </div>
+          <div className="flex-1" />
+          <button
+            onClick={onFlip}
+            className="mt-6 w-full py-3 rounded-xl bg-[#C9A644] text-black font-semibold text-sm hover:bg-[#D4B44F] transition-colors"
+          >
+            What to do next →
+          </button>
+        </div>
+
+        {/* Back: Action */}
+        <div className="flip-card-face flip-card-back bg-[#131720] border border-[#C9A644]/20 rounded-2xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A644]">
+              Action plan
+            </p>
+            <button
+              onClick={onFlip}
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              ← Back
+            </button>
+          </div>
+          {action ? (
+            <>
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                {action.whyItMatters}
+              </p>
+              <div className="relative flex-1 min-h-0 rounded-xl overflow-hidden">
+                <pre
+                  className={`text-xs px-4 py-4 h-full overflow-auto whitespace-pre-wrap leading-relaxed ${
+                    action.contentType === "code"
+                      ? "bg-black text-gray-300 font-mono"
+                      : "bg-white/[0.04] text-gray-300"
+                  }`}
+                >
+                  {action.content}
+                </pre>
+                <button
+                  onClick={handleCopy}
+                  className="absolute top-3 right-3 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              {action.isPlaceholder && (
+                <p className="text-xs text-amber-500/60 mt-2 italic">
+                  Template — customise before using.
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="bg-white/[0.04] rounded-xl px-4 py-4 flex-1">
+              <p className="text-gray-300 text-sm leading-relaxed">
+                {recommendation.firstAction}
+              </p>
+            </div>
           )}
         </div>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${IMPACT_STYLES[action.impact]}`}>
-          {action.impact} impact
-        </span>
       </div>
-
-      <p className="text-xs text-gray-500 leading-relaxed">{action.whyItMatters}</p>
-
-      <div className="relative">
-        <pre className={`text-xs rounded-md px-3 py-3 overflow-x-auto whitespace-pre-wrap leading-relaxed ${
-          isCode ? "bg-gray-900 text-gray-100 font-mono" : "bg-gray-50 text-gray-700"
-        }`}>
-          {action.content}
-        </pre>
-        <button
-          onClick={handleCopy}
-          className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-400 hover:text-gray-200 transition-colors border border-gray-200/20"
-          title="Copy to clipboard"
-        >
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      </div>
-
-      {isSteps && (
-        <p className="text-xs text-gray-400 italic">Follow the steps above — no code required.</p>
-      )}
     </div>
   );
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -278,10 +310,29 @@ export default function Home() {
   const [testingMode, setTestingMode] = useState<TestingMode>("all");
   const [queryCount, setQueryCount] = useState(12);
 
+  // New UI state
+  const [profileCollapsed, setProfileCollapsed] = useState(true);
+  const [servicesExpanded, setServicesExpanded] = useState(false);
+  const [signalsExpanded, setSignalsExpanded] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [cardWidth, setCardWidth] = useState(0);
+
   const runScore = testingMode === "all" || testingMode === "score-only";
   const runRecommendations = testingMode === "all" || testingMode === "rec-only";
 
-  // Auto-close modal when all steps finish successfully
+  // Measure carousel container width for card sizing
+  useEffect(() => {
+    if (!carouselRef.current) return;
+    const obs = new ResizeObserver(([entry]) => {
+      setCardWidth(entry.contentRect.width * 0.88);
+    });
+    obs.observe(carouselRef.current);
+    return () => obs.disconnect();
+  }, [submitted]);
+
+  // Auto-close modal when all steps finish
   useEffect(() => {
     if (showModal && steps.every((s) => s.status === "done")) {
       const t = setTimeout(() => setShowModal(false), 800);
@@ -300,11 +351,37 @@ export default function Home() {
     });
   }
 
+  function flipCard(i: number) {
+    setFlippedCards((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  }
+
+  function resetState() {
+    setSubmitted(false);
+    setProfile(null);
+    setScoreResult(null);
+    setError(null);
+    setSteps(INITIAL_STEPS.map((s) => ({ ...s })));
+    setShowModal(false);
+    setRecommendations([]);
+    setRecommendationsLoading(false);
+    setRecommendationsError(false);
+    setActions([]);
+    setActionsLoading(false);
+    setCarouselIndex(0);
+    setFlippedCards(new Set());
+    setProfileCollapsed(true);
+    setServicesExpanded(false);
+    setSignalsExpanded(false);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
 
-    // Fake data — no API calls
     if (testingMode === "fake") {
       setSubmitted(true);
       setProfile(FAKE_PROFILE);
@@ -326,10 +403,11 @@ export default function Home() {
     setRecommendationsError(false);
     setActions([]);
     setActionsLoading(false);
+    setCarouselIndex(0);
+    setFlippedCards(new Set());
 
-    // Build step list based on what's actually being run (skip unchecked sections)
     const activeSteps: PipelineStep[] = [
-      { id: "analyze",   label: "Extracting business from URL",    status: "pending" },
+      { id: "analyze",   label: "Reading your website",             status: "pending" },
       ...(runScore ? [
         { id: "intents",   label: "Analysing key customer intent",   status: "pending" as StepStatus },
         { id: "chatgpt",   label: "Calculating ChatGPT visibility",  status: "pending" as StepStatus },
@@ -344,7 +422,7 @@ export default function Home() {
     setSteps(activeSteps);
     setShowModal(true);
 
-    // ── Step 1: Extract business profile ────────────────────────────────────
+    // Step 1: Read website & extract profile
     setStep("analyze", { status: "loading" });
     let fetchedProfile: BusinessProfile;
     try {
@@ -368,7 +446,7 @@ export default function Home() {
       return;
     }
 
-    // ── Recommendations + actions (background, if enabled) ───────────────────
+    // Recommendations + actions (background)
     if (runRecommendations) {
       setStep("recommend", { status: "loading" });
       setRecommendationsLoading(true);
@@ -405,10 +483,9 @@ export default function Home() {
         .finally(() => setActionsLoading(false));
     }
 
-    // ── Step 2–5: Generate intents + query all 3 LLMs ────────────────────────
+    // Score
     if (runScore) {
       setStep("intents", { status: "loading" });
-      // After ~3s the intent phase is likely done server-side; show LLMs as loading
       intentTimeoutRef.current = setTimeout(() => {
         setStep("intents", { status: "done" });
         setStep("chatgpt", { status: "loading" });
@@ -447,15 +524,22 @@ export default function Home() {
   const hasStepError = steps.some((s) => s.status === "error");
   const isRunning = steps.some((s) => s.status === "loading");
 
+  // Combine recommendations + actions into a single carousel data source
+  const improvements = recommendations.map((rec, i) => ({
+    recommendation: rec,
+    action: actions[i],
+  }));
+
   return (
-    <main className="min-h-screen bg-white flex flex-col">
+    <main className="min-h-screen bg-[#0c0e14] text-white flex flex-col">
+
       {/* Progress modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-[#131720] border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Analysing your business</h2>
-              <p className="text-xs text-gray-400 mt-0.5 break-all">{url}</p>
+              <h2 className="text-sm font-semibold text-white">Analysing your business</h2>
+              <p className="text-xs text-gray-500 mt-0.5 break-all">{url}</p>
             </div>
             <ul className="space-y-3">
               {steps.map((step) => (
@@ -463,13 +547,13 @@ export default function Home() {
                   <StepIcon status={step.status} />
                   <div className="min-w-0">
                     <span className={`text-sm ${
-                      step.status === "pending" ? "text-gray-400" :
-                      step.status === "error"   ? "text-red-600"  : "text-gray-800"
+                      step.status === "pending" ? "text-gray-500" :
+                      step.status === "error"   ? "text-red-400"  : "text-gray-200"
                     }`}>
                       {step.label}
                     </span>
                     {step.error && (
-                      <p className="text-xs text-red-500 mt-1 font-mono break-words">{step.error}</p>
+                      <p className="text-xs text-red-400 mt-1 font-mono break-words">{step.error}</p>
                     )}
                   </div>
                 </li>
@@ -478,7 +562,7 @@ export default function Home() {
             {hasStepError && !isRunning && (
               <button
                 onClick={() => setShowModal(false)}
-                className="w-full py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                className="w-full py-2 text-sm text-gray-400 border border-white/10 rounded-xl hover:bg-white/[0.05] transition-colors"
               >
                 Close
               </button>
@@ -488,104 +572,125 @@ export default function Home() {
       )}
 
       {/* Nav */}
-      <nav className="border-b border-gray-100 px-8 py-4 flex items-center justify-between">
-        <span className="font-semibold text-gray-900 tracking-tight">
-          LLM<span className="text-blue-600">Rank</span>
-        </span>
-        <span className="text-xs text-gray-400 uppercase tracking-widest">
-          MBA Project
+      <nav className="px-8 py-5 flex items-center justify-between border-b border-white/[0.06]">
+        <span
+          className="font-bold text-[#C9A644] text-xl tracking-tight"
+          style={{ fontFamily: "var(--font-playfair)" }}
+        >
+          NLM
         </span>
       </nav>
 
-      {/* Hero */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-24">
+      {/* Main */}
+      <div className="flex-1 flex flex-col items-center px-4 py-20">
         <div className="max-w-xl w-full text-center space-y-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-            AI Visibility for Small Business
+
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A644]">
+            Translating your business value into AI visibility
           </p>
 
-          <h1 className="text-4xl font-bold text-gray-900 leading-tight">
-            How do AI assistants describe your business?
+          <h1
+            className="text-5xl font-bold text-white leading-tight"
+            style={{ fontFamily: "var(--font-playfair)" }}
+          >
+            Can people find you on LLMs?
           </h1>
 
-          <p className="text-gray-500 text-lg">
-            Enter your website URL and we&apos;ll analyze how visible and
-            accurately represented your business is across leading AI models —
-            then suggest how to improve it.
+          <p className="text-gray-400 text-lg leading-relaxed">
+            Enter your website URL and we&apos;ll analyze how visible and accurately
+            represented your business is across leading AI models, then suggest how
+            to improve it.
           </p>
 
-          {/* URL Input */}
+          {/* ── Pre-submit ── */}
           {!submitted ? (
-            <form
-              onSubmit={handleSubmit}
-              className="mt-8 flex flex-col gap-3"
-            >
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://yourbusiness.com"
-                  required
-                  className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors whitespace-nowrap"
-                >
-                  Analyze →
-                </button>
-              </div>
-              <div className="flex items-center gap-3 px-1 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400 whitespace-nowrap">Testing mode</span>
-                  <select
-                    value={testingMode}
-                    onChange={(e) => setTestingMode(e.target.value as TestingMode)}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <>
+              <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://yourbusiness.com"
+                    required
+                    className="flex-1 px-4 py-3 rounded-xl border border-white/10 bg-white/[0.04] text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#C9A644]/50 focus:border-[#C9A644]/50 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-[#C9A644] text-black rounded-xl font-semibold text-sm hover:bg-[#D4B44F] transition-colors whitespace-nowrap"
                   >
-                    <option value="all">All</option>
-                    <option value="score-only">LLM Score Only</option>
-                    <option value="rec-only">Recommendations + Actions Only</option>
-                    <option value="fake">Fake Data</option>
-                  </select>
+                    Analyze →
+                  </button>
                 </div>
-                {(testingMode === "all" || testingMode === "score-only") && (
+                <div className="flex items-center gap-3 px-1 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 whitespace-nowrap">Queries per LLM</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={12}
-                      value={queryCount}
-                      onChange={(e) => setQueryCount(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
-                      className="w-16 text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-center text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <span className="text-xs text-gray-500 whitespace-nowrap">Testing mode</span>
+                    <select
+                      value={testingMode}
+                      onChange={(e) => setTestingMode(e.target.value as TestingMode)}
+                      className="text-xs border border-white/10 rounded-lg px-2 py-1.5 text-gray-400 bg-[#131720] focus:outline-none focus:ring-2 focus:ring-[#C9A644]/40"
+                    >
+                      <option value="all">All</option>
+                      <option value="score-only">LLM Score Only</option>
+                      <option value="rec-only">Recommendations + Actions Only</option>
+                      <option value="fake">Fake Data</option>
+                    </select>
                   </div>
-                )}
+                  {(testingMode === "all" || testingMode === "score-only") && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">Queries per LLM</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={queryCount}
+                        onChange={(e) => setQueryCount(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
+                        className="w-16 text-xs border border-white/10 rounded-lg px-2 py-1.5 text-center text-gray-400 bg-[#131720] focus:outline-none focus:ring-2 focus:ring-[#C9A644]/40"
+                      />
+                    </div>
+                  )}
+                </div>
+              </form>
+
+              {/* Analyze, Measure, Improve — only visible before submission */}
+              <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+                {[
+                  {
+                    step: "01",
+                    title: "Analyze",
+                    desc: "We examine your website to understand your business, products, and positioning.",
+                  },
+                  {
+                    step: "02",
+                    title: "Measure",
+                    desc: "We query multiple LLMs to see how, and if, they mention your business.",
+                  },
+                  {
+                    step: "03",
+                    title: "Improve",
+                    desc: "We deliver tailored recommendations to boost your AI visibility.",
+                  },
+                ].map(({ step, title, desc }) => (
+                  <div key={step} className="space-y-2">
+                    <span className="text-xs font-mono text-[#C9A644]">{step}</span>
+                    <h3 className="font-semibold text-white">{title}</h3>
+                    <p className="text-sm text-gray-500">{desc}</p>
+                  </div>
+                ))}
               </div>
-            </form>
+            </>
           ) : (
+
+            /* ── Post-submit ── */
             <div className="mt-8 space-y-4 text-left">
+
               {/* URL chip */}
-              <div className="px-4 py-3 rounded-lg border border-blue-100 bg-blue-50 flex items-center gap-3">
-                <span className="text-blue-500 text-base">🔗</span>
-                <p className="text-sm text-blue-700 break-all flex-1">{url}</p>
+              <div className="px-4 py-3 rounded-xl border border-white/10 bg-white/[0.04] flex items-center gap-3">
+                <span className="text-[#C9A644] text-base">🔗</span>
+                <p className="text-sm text-gray-300 break-all flex-1">{url}</p>
                 <button
-                  onClick={() => {
-                    setSubmitted(false);
-                    setProfile(null);
-                    setScoreResult(null);
-                    setError(null);
-                    setSteps(INITIAL_STEPS.map((s) => ({ ...s })));
-                    setShowModal(false);
-                    setRecommendations([]);
-                    setRecommendationsLoading(false);
-                    setRecommendationsError(false);
-                    setActions([]);
-                    setActionsLoading(false);
-                  }}
-                  className="text-xs text-blue-400 hover:text-blue-600 whitespace-nowrap"
+                  onClick={resetState}
+                  className="text-xs text-gray-500 hover:text-gray-300 whitespace-nowrap transition-colors"
                 >
                   Change
                 </button>
@@ -593,233 +698,298 @@ export default function Home() {
 
               {/* Error */}
               {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-4">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="rounded-xl border border-red-900/40 bg-red-900/20 px-6 py-4">
+                  <p className="text-sm text-red-400">{error}</p>
                 </div>
               )}
 
-              {/* Business profile card */}
+              {/* ── Your Business (collapsed by default) ── */}
               {profile && (
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                      Business Detected
+                <div className="rounded-2xl border border-white/[0.08] bg-[#131720] overflow-hidden">
+                  <button
+                    onClick={() => setProfileCollapsed((c) => !c)}
+                    className="w-full px-6 py-4 flex items-center gap-3 hover:bg-white/[0.03] transition-colors text-left"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 whitespace-nowrap">
+                      Your Business
                     </p>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h2 className="text-lg font-bold text-gray-900">
-                          {profile.name}
-                        </h2>
-                        <div className="flex items-center gap-2 mt-1">
-                          {profile.type && (
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium capitalize">
-                              {profile.type}
-                            </span>
-                          )}
-                          {profile.location && (
-                            <span className="text-xs text-gray-400">
-                              {profile.location}
-                            </span>
-                          )}
+                    <span className="text-sm font-semibold text-white truncate">{profile.name}</span>
+                    {profile.type && (
+                      <span className="text-xs bg-[#C9A644]/10 text-[#C9A644] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0">
+                        {profile.type}
+                      </span>
+                    )}
+                    {profile.location && (
+                      <span className="text-xs text-gray-500 truncate flex-shrink-0 hidden sm:block">{profile.location}</span>
+                    )}
+                    <span className="text-xs text-gray-600 ml-auto flex-shrink-0">
+                      {profileCollapsed ? "▼" : "▲"}
+                    </span>
+                  </button>
+
+                  {!profileCollapsed && (
+                    <div className="border-t border-white/[0.06]">
+                      <div className="px-6 py-4 border-b border-white/[0.06]">
+                        <p className="text-sm text-gray-400 leading-relaxed">{profile.description}</p>
+                      </div>
+
+                      {profile.services.length > 0 && (
+                        <div className="px-6 py-4 border-b border-white/[0.06]">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
+                            Services
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {(servicesExpanded ? profile.services : profile.services.slice(0, 4)).map((s) => (
+                              <span
+                                key={s}
+                                className="text-xs bg-white/[0.05] text-gray-300 px-3 py-1.5 rounded-lg"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                            {!servicesExpanded && profile.services.length > 4 && (
+                              <button
+                                onClick={() => setServicesExpanded(true)}
+                                className="text-xs text-[#C9A644] hover:text-[#D4B44F] px-2 py-1.5 transition-colors"
+                              >
+                                +{profile.services.length - 4} more
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="px-6 py-4">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
+                          Signals detected
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(() => {
+                            const allSignals = [
+                              { label: "Title tag",              active: !!profile.signals.titleTag },
+                              { label: "Meta description",       active: profile.signals.hasMetaDescription },
+                              { label: "Schema markup",          active: profile.signals.hasSchema },
+                              { label: "Blog / News",            active: profile.signals.hasBlog },
+                              { label: "FAQ page",               active: profile.signals.hasFAQ },
+                              { label: "Social links",           active: profile.signals.socialLinks.length > 0 },
+                              { label: "Google Maps embed",      active: profile.signals.hasMapsEmbed },
+                              { label: "Google Business Profile", active: profile.signals.hasGoogleBusinessProfile },
+                              ...(profile.signals.hasGoogleBusinessProfile ? [
+                                { label: "GBP hours set",        active: profile.signals.gbpHasHours },
+                                { label: `GBP photos (${profile.signals.gbpPhotoCount ?? 0})`, active: (profile.signals.gbpPhotoCount ?? 0) >= 10 },
+                              ] : []),
+                            ];
+                            const visible = signalsExpanded ? allSignals : allSignals.slice(0, 5);
+                            return (
+                              <>
+                                {visible.map(({ label, active }) => (
+                                  <span
+                                    key={label}
+                                    className={`text-xs px-2.5 py-1.5 rounded-lg font-medium ${
+                                      active
+                                        ? "bg-green-900/30 text-green-400"
+                                        : "bg-white/[0.04] text-gray-500"
+                                    }`}
+                                  >
+                                    {active ? "✓" : "✗"} {label}
+                                  </span>
+                                ))}
+                                {!signalsExpanded && allSignals.length > 5 && (
+                                  <button
+                                    onClick={() => setSignalsExpanded(true)}
+                                    className="text-xs text-[#C9A644] hover:text-[#D4B44F] px-2 py-1.5 transition-colors"
+                                  >
+                                    +{allSignals.length - 5} more
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-                      {profile.description}
-                    </p>
-                  </div>
-
-                  {profile.services.length > 0 && (
-                    <div className="px-6 py-4 border-b border-gray-100">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                        Services
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {profile.services.map((s) => (
-                          <span
-                            key={s}
-                            className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
                   )}
-
-                  <div className="px-6 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                      Signals detected
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { label: "Title tag", active: !!profile.signals.titleTag },
-                        { label: "Meta description", active: profile.signals.hasMetaDescription },
-                        { label: "Schema markup", active: profile.signals.hasSchema },
-                        { label: "Blog / News", active: profile.signals.hasBlog },
-                        { label: "FAQ page", active: profile.signals.hasFAQ },
-                        { label: "Social links", active: profile.signals.socialLinks.length > 0 },
-                        { label: "Google Maps embed", active: profile.signals.hasMapsEmbed },
-                        { label: "Google Business Profile", active: profile.signals.hasGoogleBusinessProfile },
-                        ...(profile.signals.hasGoogleBusinessProfile ? [
-                          { label: "GBP hours set", active: profile.signals.gbpHasHours },
-                          { label: `GBP photos (${profile.signals.gbpPhotoCount ?? 0})`, active: (profile.signals.gbpPhotoCount ?? 0) >= 10 },
-                        ] : []),
-                      ].map(({ label, active }) => (
-                        <span
-                          key={label}
-                          className={`text-xs px-2 py-1 rounded-md font-medium ${
-                            active
-                              ? "bg-green-50 text-green-700"
-                              : "bg-gray-50 text-gray-400"
-                          }`}
-                        >
-                          {active ? "✓" : "✗"} {label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
 
-              {/* Score card — real data */}
+              {/* ── AI Visibility Score — two-column layout ── */}
               {scoreResult && (
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                        LLM Visibility Score
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Based on {scoreResult.queries.length} queries across 3 AI models
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold text-gray-900">
-                        {scoreResult.overallScore}
-                        <span className="text-base font-normal text-gray-400">/100</span>
-                      </p>
-                      <p className={`text-xs font-semibold ${scoreLabel(scoreResult.overallScore).color}`}>
-                        {scoreLabel(scoreResult.overallScore).label}
-                      </p>
-                    </div>
+                <div className="rounded-2xl border border-white/[0.08] bg-[#131720] overflow-hidden">
+                  <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                      AI Visibility Score
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {scoreResult.queries.length} queries · 3 AI models
+                    </p>
                   </div>
 
-                  <div className="px-6 py-4 border-b border-gray-100">
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-blue-600 transition-all duration-700"
-                        style={{ width: `${scoreResult.overallScore}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-4 space-y-3">
-                    {scoreResult.perLLM.map((s) => {
-                      const meta = LLM_META[s.llm];
-                      return (
-                        <ScoreBar
-                          key={s.llm}
-                          label={meta.label}
-                          score={s.score}
-                          color={meta.color}
-                          mentions={s.mentions}
-                          total={s.totalQueries}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-white/[0.06]">
+                    {/* Left: scores */}
+                    <div className="px-6 py-5 space-y-5">
+                      <div className="flex items-end gap-3">
+                        <p className="text-5xl font-bold text-white leading-none">
+                          {scoreResult.overallScore}
+                        </p>
+                        <div className="pb-1">
+                          <span className="text-gray-500 text-sm">/100</span>
+                          <p className={`text-xs font-semibold ${scoreLabel(scoreResult.overallScore).color}`}>
+                            {scoreLabel(scoreResult.overallScore).label}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-[#C9A644] transition-all duration-700"
+                          style={{ width: `${scoreResult.overallScore}%` }}
                         />
-                      );
-                    })}
-                  </div>
+                      </div>
+                      <div className="space-y-3 pt-1">
+                        {scoreResult.perLLM.map((s) => {
+                          const meta = LLM_META[s.llm];
+                          return (
+                            <ScoreBar
+                              key={s.llm}
+                              label={meta.label}
+                              score={s.score}
+                              color={meta.color}
+                              mentions={s.mentions}
+                              total={s.totalQueries}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                  {scoreResult.summary && (
-                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                    {/* Right: what this means */}
+                    <div className="px-6 py-5 border-t sm:border-t-0 border-white/[0.06]">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
                         What this means
                       </p>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        {scoreResult.summary}
-                      </p>
+                      {scoreResult.summary ? (
+                        <p className="text-sm text-gray-400 leading-relaxed">
+                          {scoreResult.summary}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-600 italic">No summary available.</p>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
-              {/* Recommendations */}
-              {profile && recommendationsError && (
-                <div className="rounded-xl border border-red-100 bg-red-50 px-5 py-3">
-                  <p className="text-xs text-red-500">Could not generate recommendations — check your OPENAI_API_KEY.</p>
-                </div>
-              )}
-              {profile && (recommendationsLoading || recommendations.length > 0) && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                      Recommendations
+              {/* ── Recommended Improvements carousel ── */}
+              {profile && (
+                recommendationsError ? (
+                  <div className="rounded-xl border border-red-900/30 bg-red-900/10 px-5 py-3">
+                    <p className="text-xs text-red-400">
+                      Could not generate recommendations, check your OPENAI_API_KEY.
                     </p>
-                    {recommendationsLoading && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <div className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin" />
-                        Analysing gaps...
-                      </div>
-                    )}
                   </div>
-                  {recommendations.map((rec, i) => (
-                    <RecommendationCard key={i} rec={rec} />
-                  ))}
-                </div>
-              )}
-
-              {/* Actions */}
-              {profile && (actionsLoading || actions.length > 0) && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                        Actions
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Ready-to-use content and fixes for your biggest gaps
-                      </p>
+                ) : (recommendationsLoading || improvements.length > 0) && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                          Recommended Improvements
+                        </p>
+                        {!recommendationsLoading && improvements.length > 0 && (
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            {actionsLoading
+                              ? "Generating action plans..."
+                              : "Flip a card to see the action plan"}
+                          </p>
+                        )}
+                      </div>
+                      {(recommendationsLoading || actionsLoading) && (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-gray-700 border-t-[#C9A644] animate-spin" />
+                          {recommendationsLoading ? "Analysing gaps..." : "Generating..."}
+                        </div>
+                      )}
                     </div>
-                    {actionsLoading && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <div className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin" />
-                        Generating...
-                      </div>
+
+                    {improvements.length > 0 && (
+                      <>
+                        {/* Carousel with next-card peek */}
+                        <div ref={carouselRef} className="overflow-hidden w-full">
+                          <div
+                            className="flex transition-transform duration-300 ease-in-out"
+                            style={{
+                              transform:
+                                cardWidth > 0
+                                  ? `translateX(-${carouselIndex * (cardWidth + 16)}px)`
+                                  : "none",
+                            }}
+                          >
+                            {improvements.map((item, i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  width: cardWidth > 0 ? `${cardWidth}px` : "88%",
+                                  flexShrink: 0,
+                                  marginRight: "16px",
+                                }}
+                              >
+                                <ImprovementFlipCard
+                                  recommendation={item.recommendation}
+                                  action={item.action}
+                                  isFlipped={flippedCards.has(i)}
+                                  onFlip={() => flipCard(i)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Navigation dots */}
+                        {improvements.length > 1 && (
+                          <div className="flex items-center justify-center gap-2 pt-2">
+                            {improvements.map((_, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setCarouselIndex(i)}
+                                className={`rounded-full transition-all duration-200 ${
+                                  i === carouselIndex
+                                    ? "bg-[#C9A644] w-5 h-2"
+                                    : "bg-white/20 hover:bg-white/35 w-2 h-2"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
-                  {actions.map((action) => (
-                    <ActionCardComponent key={action.id} action={action} />
-                  ))}
-                </div>
+                )
               )}
 
-              {/* Debug panel */}
+              {/* ── Debug panel ── */}
               {scoreResult && (
-                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
                   <button
                     onClick={() => setDebugOpen((o) => !o)}
-                    className="w-full px-6 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                    className="w-full px-6 py-3 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
                   >
-                    <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">
-                      Debug — Query × LLM Results
+                    <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">
+                      Debug, Query x LLM Results
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-600">
                       {debugOpen ? "▲ hide" : "▼ show"}
                     </span>
                   </button>
 
                   {debugOpen && (
                     <div className="overflow-x-auto">
-                      {/* Intents + Queries side by side */}
-                      <div className="px-6 py-4 border-b border-gray-100 bg-white grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="px-6 py-4 border-b border-white/[0.06] bg-[#131720] grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
                             Common Customer Intents
                           </p>
                           <ol className="space-y-1">
                             {scoreResult.intents.map((intent, i) => (
                               <li key={i} className="text-xs text-gray-500">
-                                <span className="font-mono text-gray-300 mr-2">
+                                <span className="font-mono text-gray-700 mr-2">
                                   {String(i + 1).padStart(2, "0")}
                                 </span>
                                 {intent}
@@ -828,13 +998,13 @@ export default function Home() {
                           </ol>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
                             Generated Queries
                           </p>
                           <ol className="space-y-1">
                             {scoreResult.queries.map((q, i) => (
-                              <li key={i} className="text-xs text-gray-600">
-                                <span className="font-mono text-gray-300 mr-2">
+                              <li key={i} className="text-xs text-gray-400">
+                                <span className="font-mono text-gray-700 mr-2">
                                   {String(i + 1).padStart(2, "0")}
                                 </span>
                                 {q}
@@ -844,14 +1014,13 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* Results table */}
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-gray-50 border-b border-gray-100">
-                            <th className="text-left px-4 py-2 text-gray-400 font-medium w-1/2">Query</th>
-                            <th className="text-left px-4 py-2 text-gray-400 font-medium">LLM</th>
-                            <th className="text-left px-4 py-2 text-gray-400 font-medium">Mentioned</th>
-                            <th className="text-left px-4 py-2 text-gray-400 font-medium">Latency</th>
+                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                            <th className="text-left px-4 py-2 text-gray-600 font-medium w-1/2">Query</th>
+                            <th className="text-left px-4 py-2 text-gray-600 font-medium">LLM</th>
+                            <th className="text-left px-4 py-2 text-gray-600 font-medium">Mentioned</th>
+                            <th className="text-left px-4 py-2 text-gray-600 font-medium">Latency</th>
                             <th className="px-4 py-2" />
                           </tr>
                         </thead>
@@ -863,31 +1032,31 @@ export default function Home() {
                             return (
                               <React.Fragment key={rowKey}>
                                 <tr
-                                  className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                                  className="border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer"
                                   onClick={() => toggleRow(rowKey)}
                                 >
-                                  <td className="px-4 py-2 text-gray-600 max-w-xs truncate">{entry.query}</td>
+                                  <td className="px-4 py-2 text-gray-400 max-w-xs truncate">{entry.query}</td>
                                   <td className="px-4 py-2 text-gray-500">{meta.label}</td>
                                   <td className="px-4 py-2">
                                     {entry.error ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium">error</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 font-medium">error</span>
                                     ) : entry.mentioned ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium">yes</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 font-medium">yes</span>
                                     ) : (
-                                      <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">no</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-white/[0.04] text-gray-600">no</span>
                                     )}
                                   </td>
-                                  <td className="px-4 py-2 text-gray-400 font-mono">
+                                  <td className="px-4 py-2 text-gray-600 font-mono">
                                     {entry.error ? "—" : entry.latencyMs > 0 ? `${(entry.latencyMs / 1000).toFixed(1)}s` : "—"}
                                   </td>
-                                  <td className="px-4 py-2 text-gray-400">{isExpanded ? "▲" : "▼"}</td>
+                                  <td className="px-4 py-2 text-gray-600">{isExpanded ? "▲" : "▼"}</td>
                                 </tr>
                                 {isExpanded && (
-                                  <tr className="bg-gray-50 border-b border-gray-100">
+                                  <tr className="bg-white/[0.02] border-b border-white/[0.04]">
                                     <td colSpan={5} className="px-4 py-3 leading-relaxed whitespace-pre-wrap">
                                       {entry.error
-                                        ? <span className="text-red-500 font-mono text-xs">{entry.errorMessage ?? "Unknown error"}</span>
-                                        : entry.response || <span className="text-gray-400 italic">No response</span>}
+                                        ? <span className="text-red-400 font-mono text-xs">{entry.errorMessage ?? "Unknown error"}</span>
+                                        : <span className="text-gray-500 text-xs">{entry.response || <span className="italic">No response</span>}</span>}
                                     </td>
                                   </tr>
                                 )}
@@ -903,38 +1072,11 @@ export default function Home() {
             </div>
           )}
         </div>
-
-        {/* Steps preview */}
-        <div className="mt-20 max-w-2xl w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
-          {[
-            {
-              step: "01",
-              title: "Extract",
-              desc: "We scrape your website to understand your business, products, and positioning.",
-            },
-            {
-              step: "02",
-              title: "Measure",
-              desc: "We query multiple LLMs to see how — and if — they mention your business.",
-            },
-            {
-              step: "03",
-              title: "Improve",
-              desc: "We deliver tailored recommendations to boost your AI and web visibility.",
-            },
-          ].map(({ step, title, desc }) => (
-            <div key={step} className="space-y-2">
-              <span className="text-xs font-mono text-blue-500">{step}</span>
-              <h3 className="font-semibold text-gray-900">{title}</h3>
-              <p className="text-sm text-gray-500">{desc}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 py-6 text-center text-xs text-gray-400">
-        LLMRank · MBA Project · {new Date().getFullYear()}
+      <footer className="border-t border-white/[0.06] py-6 text-center text-xs text-gray-600">
+        NLM · {new Date().getFullYear()}
       </footer>
     </main>
   );
