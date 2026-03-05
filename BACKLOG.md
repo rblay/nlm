@@ -201,11 +201,9 @@ Goal: give business owners ready-to-use content and instructions based on their 
 
 ## Documentation
 
-**README overhaul (pre-submission)**
-- Current README is a placeholder — needs to become a readable technical overview for graders
-- Should cover: what the product does and why, system architecture diagram or description, tech stack and key design decisions, how to run locally, API route reference, known limitations and next steps
+**README overhaul (pre-submission) ✅**
+- Full technical README written for graders: product overview, system architecture, tech stack table, local setup, API route reference, key design decisions, developer mode, project structure, known limitations, and pages table
 - Audience: technical graders who will read the code — the README is their entry point
-- Priority: before final submission, not before demo
 
 ---
 
