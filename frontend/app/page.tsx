@@ -1127,7 +1127,7 @@ export default function Home() {
       ...(runScore ? [
         { id: "intents",   label: "Figuring out what your customers are searching for...", status: "pending" as StepStatus },
         { id: "chatgpt",   label: "Checking if AI recommends you...", status: "pending" as StepStatus },
-        { id: "claude",    label: "Searching for your business across AI guides...", status: "pending" as StepStatus },
+        { id: "perplexity", label: "Searching for your business across AI guides...", status: "pending" as StepStatus },
         { id: "gemini",    label: "Scanning AI recommendations in your area...", status: "pending" as StepStatus },
       ] : []),
       ...(runRecommendations ? [
