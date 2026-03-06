@@ -27,8 +27,11 @@
 - **Geo scope guard**: Query prompt enforces district/borough/neighbourhood-level locations only; post-generation sanitizer rewrites city-wide phrasing
 - **queryCount**: All 12 intents/queries generated; only top N sent to LLMs (frontend default 12, configurable 1–12)
 - **Scoring**: `mentions / total_queries × 100` per LLM; overall = average across 3 LLMs
-- **Detection**: Fuzzy alias matching via `buildNameAliases()` — strips business-type suffixes, checks domain stem; case-insensitive
+- **Detection**: Fuzzy alias matching via `buildNameAliases()` — strips business-type suffixes, checks domain stem; individual distinctive tokens (>4 chars) added alongside bigrams so partial name mentions (e.g. "Quinta" for "Quinta Pupusas") are caught; expanded `NAME_STOP_WORDS` prevents generic category words (coffee, roaster, roasters, roastery, bakery, sauna, saunas, wellness, rooftop) from becoming false-positive aliases; `detectCategory()` normalises Unicode accents via `.normalize("NFD")` so "café" matches "cafe"
+- **Location parsing**: `extractLocationParts()` uses "/" as co-equal venue separator and "," as hierarchy; returns `{ districts: string[], city: string | null }`; `COUNTRY_REGION_TERMS` Set filters country/region strings (uk, england, usa, etc.) from location parts; `enforceDistrictLevelQueries()` uses block assignment so multi-location businesses get 50/50 query distribution across venues; sibling district correction rewrites wrong-venue queries to the assigned target district
+- **Prompt quality**: `generateIntents` no longer hardcodes "London" (says "local businesses"); `generateQueries` uses dynamic `areaExample` from real parsed location; multi-location businesses get an explicit per-venue split instruction (`locationRule`) injected into the query prompt
 - **Parallelism**: All 3 scoring providers run fully in parallel (no batching). Perplexity replaced Anthropic — sonar's native single-pass search removes the multi-turn tool loop that caused ~4× slower responses and required rate-limit batching
+- **Test script**: `frontend/scripts/test-prompts.mjs` — dry-run script for intent + query generation pipeline (no LLM scoring); mirrors all helpers from `route.ts`; must be kept in sync manually
 - **Shared types**: `frontend/lib/types.ts`
 - **Google SDK**: `@google/genai` (NOT `@google/generative-ai`); model: `gemini-2.5-flash`
 
@@ -50,8 +53,8 @@
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
 
 ## What's still pending (priority order)
+- **1.6** — Graceful error handling (URL unreachable, LLM timeouts, partial results)
 - **5.1** — Make loading steps sequential in user-facing flow
-- **1.6 / 5.2** — Graceful error handling (URL unreachable, LLM timeouts, partial results)
 - **README** — Technical overview for graders
 
 ## Env vars required
