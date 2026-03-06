@@ -537,63 +537,75 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Running ${queriesToRun.length}/${queries.length} queries against LLMs (queryCount=${queryCount})`);
 
   // 1.4 — query all 3 LLMs for every query
-  // OpenAI and Gemini fire all queries in parallel.
+  // All three providers start simultaneously.
+  // OpenAI and Gemini run all queries fully in parallel.
   // Anthropic is batched in groups of 3 with a 2s gap to stay under its
-  // 50k input-tokens-per-minute and concurrent-connection rate limits.
+  // 50k input-tokens-per-minute and concurrent-connection rate limits,
+  // but its batched loop runs concurrently with OpenAI + Gemini (not after).
   const allDebugEntries: DebugEntry[] = [];
 
   const ANTHROPIC_BATCH = 3;
   type QueryResult = PromiseSettledResult<{ response: string; latencyMs: number }>;
   const anthropicResults = new Map<string, QueryResult>();
 
-  for (let i = 0; i < queriesToRun.length; i += ANTHROPIC_BATCH) {
-    const batch = queriesToRun.slice(i, i + ANTHROPIC_BATCH);
-    const settled = await Promise.allSettled(batch.map(queryAnthropic));
-    batch.forEach((q, idx) => anthropicResults.set(q, settled[idx]));
-    if (i + ANTHROPIC_BATCH < queriesToRun.length) {
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-  }
-
-  await Promise.all(
-    queriesToRun.map(async (query) => {
-      const [openaiResult, geminiResult] =
-        await Promise.allSettled([
-          queryOpenAI(query),
-          queryGemini(query),
-        ]);
-      const anthropicResult = anthropicResults.get(query)!;
-
-      const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
-        { llm: "openai", settled: openaiResult },
-        { llm: "anthropic", settled: anthropicResult },
-        { llm: "gemini", settled: geminiResult },
-      ];
-
-
-      for (const { llm, settled } of results) {
-        if (settled.status === "fulfilled") {
-          const { response, latencyMs } = settled.value;
-          allDebugEntries.push({
-            query,
-            llm,
-            response,
-            mentioned: mentionsBusiness(response, profile, url),
-            latencyMs,
-          });
-        } else {
-          console.error(`[score] ${llm} failed for query "${query}":`, settled.reason);
-          allDebugEntries.push({
-            query,
-            llm,
-            response: "",
-            mentioned: false,
-            latencyMs: 0,
-          });
-        }
+  // Kick off Anthropic batches immediately (non-blocking — runs in parallel below)
+  const anthropicPromise = (async () => {
+    for (let i = 0; i < queriesToRun.length; i += ANTHROPIC_BATCH) {
+      const batch = queriesToRun.slice(i, i + ANTHROPIC_BATCH);
+      const settled = await Promise.allSettled(batch.map(queryAnthropic));
+      batch.forEach((q, idx) => anthropicResults.set(q, settled[idx]));
+      if (i + ANTHROPIC_BATCH < queriesToRun.length) {
+        await new Promise((r) => setTimeout(r, 2000));
       }
+    }
+  })();
+
+  // Kick off OpenAI + Gemini simultaneously (all queries in parallel)
+  const openaiGeminiPromise = Promise.all(
+    queriesToRun.map(async (query) => {
+      const [openaiResult, geminiResult] = await Promise.allSettled([
+        queryOpenAI(query),
+        queryGemini(query),
+      ]);
+      return { query, openaiResult, geminiResult };
     })
   );
+
+  // Wait for all three providers to finish
+  const [openaiGeminiResults] = await Promise.all([openaiGeminiPromise, anthropicPromise]);
+
+  // Collate results
+  for (const { query, openaiResult, geminiResult } of openaiGeminiResults) {
+    const anthropicResult = anthropicResults.get(query)!;
+
+    const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
+      { llm: "openai", settled: openaiResult },
+      { llm: "anthropic", settled: anthropicResult },
+      { llm: "gemini", settled: geminiResult },
+    ];
+
+    for (const { llm, settled } of results) {
+      if (settled.status === "fulfilled") {
+        const { response, latencyMs } = settled.value;
+        allDebugEntries.push({
+          query,
+          llm,
+          response,
+          mentioned: mentionsBusiness(response, profile, url),
+          latencyMs,
+        });
+      } else {
+        console.error(`[score] ${llm} failed for query "${query}":`, settled.reason);
+        allDebugEntries.push({
+          query,
+          llm,
+          response: "",
+          mentioned: false,
+          latencyMs: 0,
+        });
+      }
+    }
+  }
 
   // 1.4 — compute per-LLM scores
   const providers: LLMProvider[] = ["openai", "anthropic", "gemini"];
