@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
 import type {
   BusinessProfile,
@@ -11,7 +10,11 @@ import type {
 } from "@/lib/types";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Perplexity is OpenAI-SDK-compatible — just point at a different baseURL
+const perplexity = new OpenAI({
+  apiKey: process.env.PERPLEXITY_API_KEY ?? "",
+  baseURL: "https://api.perplexity.ai",
+});
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
 // ─── 1.3 Category detection + problem dictionaries (from GEO spec) ───────────
@@ -244,43 +247,19 @@ async function queryOpenAI(
   };
 }
 
-async function queryAnthropic(
+async function queryPerplexity(
   query: string
 ): Promise<{ response: string; latencyMs: number }> {
   const start = Date.now();
-
-  const callAnthropic = async () => {
-    // web_search_20250305 is a server-side tool — Anthropic manages the search loop
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
-      tools: [{ name: "web_search", type: "web_search_20250305" }],
-      messages: [{ role: "user", content: query }],
-    });
-    // Extract text blocks only (tool_use / tool_result blocks are intermediate steps)
-    return message.content
-      .filter((b) => b.type === "text")
-      .map((b) => ("text" in b ? b.text : ""))
-      .join("");
+  // sonar is Perplexity's fast search model — web search is native, single-pass, no tool loop
+  const completion = await perplexity.chat.completions.create({
+    model: "sonar",
+    messages: [{ role: "user", content: query }],
+  });
+  return {
+    response: completion.choices[0]?.message?.content ?? "",
+    latencyMs: Date.now() - start,
   };
-
-  try {
-    const text = await callAnthropic();
-    return { response: text, latencyMs: Date.now() - start };
-  } catch (err: unknown) {
-    // On 429, read retry-after header and wait before one retry
-    const status = (err as { status?: number })?.status;
-    if (status === 429) {
-      const headers = (err as { headers?: { get?: (k: string) => string | null } })?.headers;
-      const retryAfterRaw = headers?.get?.("retry-after") ?? "30";
-      const waitMs = Math.min(parseInt(retryAfterRaw, 10) * 1000, 60_000);
-      console.warn(`[score] Anthropic 429 — waiting ${waitMs / 1000}s before retry`);
-      await new Promise((r) => setTimeout(r, waitMs));
-      const text = await callAnthropic();
-      return { response: text, latencyMs: Date.now() - start };
-    }
-    throw err;
-  }
 }
 
 async function queryGemini(
@@ -537,78 +516,51 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Running ${queriesToRun.length}/${queries.length} queries against LLMs (queryCount=${queryCount})`);
 
   // 1.4 — query all 3 LLMs for every query
-  // All three providers start simultaneously.
-  // OpenAI and Gemini run all queries fully in parallel.
-  // Anthropic is batched in groups of 3 with a 2s gap to stay under its
-  // 50k input-tokens-per-minute and concurrent-connection rate limits,
-  // but its batched loop runs concurrently with OpenAI + Gemini (not after).
+  // All three providers run fully in parallel — no batching needed.
+  // Perplexity's sonar model has web search natively (single-pass), so it
+  // matches OpenAI and Gemini's throughput without any rate-limit throttling.
   const allDebugEntries: DebugEntry[] = [];
 
-  const ANTHROPIC_BATCH = 3;
-  type QueryResult = PromiseSettledResult<{ response: string; latencyMs: number }>;
-  const anthropicResults = new Map<string, QueryResult>();
-
-  // Kick off Anthropic batches immediately (non-blocking — runs in parallel below)
-  const anthropicPromise = (async () => {
-    for (let i = 0; i < queriesToRun.length; i += ANTHROPIC_BATCH) {
-      const batch = queriesToRun.slice(i, i + ANTHROPIC_BATCH);
-      const settled = await Promise.allSettled(batch.map(queryAnthropic));
-      batch.forEach((q, idx) => anthropicResults.set(q, settled[idx]));
-      if (i + ANTHROPIC_BATCH < queriesToRun.length) {
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-    }
-  })();
-
-  // Kick off OpenAI + Gemini simultaneously (all queries in parallel)
-  const openaiGeminiPromise = Promise.all(
+  await Promise.all(
     queriesToRun.map(async (query) => {
-      const [openaiResult, geminiResult] = await Promise.allSettled([
+      const [openaiResult, perplexityResult, geminiResult] = await Promise.allSettled([
         queryOpenAI(query),
+        queryPerplexity(query),
         queryGemini(query),
       ]);
-      return { query, openaiResult, geminiResult };
+
+      const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
+        { llm: "openai",     settled: openaiResult },
+        { llm: "perplexity", settled: perplexityResult },
+        { llm: "gemini",     settled: geminiResult },
+      ];
+
+      for (const { llm, settled } of results) {
+        if (settled.status === "fulfilled") {
+          const { response, latencyMs } = settled.value;
+          allDebugEntries.push({
+            query,
+            llm,
+            response,
+            mentioned: mentionsBusiness(response, profile, url),
+            latencyMs,
+          });
+        } else {
+          console.error(`[score] ${llm} failed for query "${query}":`, settled.reason);
+          allDebugEntries.push({
+            query,
+            llm,
+            response: "",
+            mentioned: false,
+            latencyMs: 0,
+          });
+        }
+      }
     })
   );
 
-  // Wait for all three providers to finish
-  const [openaiGeminiResults] = await Promise.all([openaiGeminiPromise, anthropicPromise]);
-
-  // Collate results
-  for (const { query, openaiResult, geminiResult } of openaiGeminiResults) {
-    const anthropicResult = anthropicResults.get(query)!;
-
-    const results: { llm: LLMProvider; settled: typeof openaiResult }[] = [
-      { llm: "openai", settled: openaiResult },
-      { llm: "anthropic", settled: anthropicResult },
-      { llm: "gemini", settled: geminiResult },
-    ];
-
-    for (const { llm, settled } of results) {
-      if (settled.status === "fulfilled") {
-        const { response, latencyMs } = settled.value;
-        allDebugEntries.push({
-          query,
-          llm,
-          response,
-          mentioned: mentionsBusiness(response, profile, url),
-          latencyMs,
-        });
-      } else {
-        console.error(`[score] ${llm} failed for query "${query}":`, settled.reason);
-        allDebugEntries.push({
-          query,
-          llm,
-          response: "",
-          mentioned: false,
-          latencyMs: 0,
-        });
-      }
-    }
-  }
-
   // 1.4 — compute per-LLM scores
-  const providers: LLMProvider[] = ["openai", "anthropic", "gemini"];
+  const providers: LLMProvider[] = ["openai", "perplexity", "gemini"];
   const perLLM: LLMScore[] = providers.map((llm) => {
     const entries = allDebugEntries.filter((e) => e.llm === llm);
     const mentions = entries.filter((e) => e.mentioned).length;
