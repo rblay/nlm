@@ -19,7 +19,8 @@ const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 type BusinessCategory = "fitness" | "restaurant" | "beauty" | "other";
 
 function detectCategory(businessType: string): BusinessCategory {
-  const t = businessType.toLowerCase();
+  // Normalise accents first so "café" matches "cafe", etc.
+  const t = businessType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/gym|fitness|studio|yoga|pilates|crossfit|boxing|hiit|spin|personal.train|pt\b/.test(t))
     return "fitness";
   if (/restaurant|cafe|bistro|bar|pub|food|dining|kitchen|eatery|takeaway/.test(t))
@@ -83,50 +84,129 @@ const CITY_WIDE_TERMS = [
   "south london",
 ] as const;
 
-function extractDistrictHint(location: string): string | null {
-  const parts = location
-    .split(/[,/;|]/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+const COUNTRY_REGION_TERMS = new Set([
+  "uk", "united kingdom", "england", "scotland", "wales",
+  "usa", "united states", "us", "america",
+  "canada", "australia",
+]);
 
-  for (const part of parts) {
-    const normalized = part.toLowerCase().replace(/\s+/g, " ").trim();
-    if (
-      CITY_WIDE_TERMS.includes(normalized as (typeof CITY_WIDE_TERMS)[number]) ||
-      normalized === "uk" ||
-      normalized === "united kingdom" ||
-      normalized === "england"
-    ) {
-      continue;
-    }
-    if (/\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/i.test(normalized)) continue; // skip postcodes
-    return part;
+/**
+ * Parse a location string into co-equal venue districts and an optional city.
+ *
+ * Separator semantics:
+ *   "/"  → co-equal venues at the same level  (e.g. "Brixton / Hackney")
+ *   ","  → hierarchy within a single venue    (e.g. "Stokes Croft, Bristol")
+ *
+ * Examples:
+ *   "Brixton / Hackney, London"       → districts: ["Brixton","Hackney"], city: null
+ *   "Stokes Croft, Bristol"           → districts: ["Stokes Croft"],      city: "Bristol"
+ *   "Farringdon, London, EC1A 1BB"    → districts: ["Farringdon"],        city: null
+ *   "Mission District, San Francisco, CA" → districts: ["Mission District"], city: "San Francisco"
+ */
+function extractLocationParts(location: string): { districts: string[]; city: string | null } {
+  function isMeaningful(p: string): boolean {
+    const norm = p.toLowerCase().replace(/\s+/g, " ").trim();
+    if (CITY_WIDE_TERMS.includes(norm as (typeof CITY_WIDE_TERMS)[number])) return false;
+    if (COUNTRY_REGION_TERMS.has(norm)) return false;
+    if (/\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/i.test(norm)) return false; // UK postcodes
+    if (/^\d{5}(-\d{4})?$/.test(norm)) return false; // US ZIP codes
+    if (/^[a-z]{2}$/i.test(norm)) return false; // 2-letter state/country codes
+    return true;
   }
 
-  return null;
+  const fragments = location.split("/").map((f) => f.trim()).filter(Boolean);
+  const districts: string[] = [];
+  let city: string | null = null;
+
+  if (fragments.length > 1) {
+    // Multi-venue: each "/" fragment is a co-equal location — take its most specific meaningful part
+    for (const fragment of fragments) {
+      const parts = fragment.split(",").map((p) => p.trim()).filter(isMeaningful);
+      if (parts[0]) districts.push(parts[0]);
+      if (!city && parts[1]) city = parts[1]; // city from second part of any fragment
+    }
+  } else {
+    // Single venue: comma-separated hierarchy (neighbourhood → city → country)
+    const parts = location.split(",").map((p) => p.trim()).filter(isMeaningful);
+    if (parts[0]) districts.push(parts[0]);
+    city = parts[1] ?? null;
+  }
+
+  return { districts, city };
+}
+
+// Convenience wrapper — returns the primary (first) district only
+function extractDistrictHint(location: string): string | null {
+  return extractLocationParts(location).districts[0] ?? null;
 }
 
 function isCityWideQuery(query: string): boolean {
   return /\b(?:greater\s+)?london\b/i.test(query) || /\b(?:east|west|north|south|central)\s+london\b/i.test(query);
 }
 
-function enforceDistrictLevelQueries(queries: string[], districtHint: string | null): string[] {
-  return queries.map((query) => {
-    if (!isCityWideQuery(query)) return query;
+function enforceDistrictLevelQueries(
+  queries: string[],
+  districts: string[],
+  city: string | null = null
+): string[] {
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // City-level regex (non-London city detected from the location string)
+  const cityRegex = city && city.length > 3
+    ? new RegExp(`\\b(in|around|across|near)\\s+${esc(city)}\\b`, "gi") : null;
+  const cityStandaloneRegex = city && city.length > 3
+    ? new RegExp(`\\b${esc(city)}\\b`, "gi") : null;
+
+  // For multi-location: block assignment — first half → districts[0], second half → districts[1], etc.
+  // queriesPerBlock rounds up so the last district may get fewer if total isn't divisible.
+  const queriesPerBlock = districts.length > 1
+    ? Math.ceil(queries.length / districts.length)
+    : queries.length;
+
+  return queries.map((query, i) => {
+    // Determine the district this query slot is assigned to
+    const blockIdx = Math.min(Math.floor(i / queriesPerBlock), districts.length - 1);
+    const targetDistrict = districts[blockIdx] ?? null;
 
     let updated = query;
-    if (districtHint) {
-      updated = updated
-        .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, `$1 ${districtHint}`)
-        .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, `$1 ${districtHint}`)
-        .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, districtHint)
-        .replace(/\b(?:greater\s+)?london\b/gi, districtHint);
-    } else {
-      updated = updated
-        .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, "")
-        .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, "")
-        .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, "")
-        .replace(/\b(?:greater\s+)?london\b/gi, "");
+
+    // 1. Replace London-wide terms with the target district
+    if (isCityWideQuery(query)) {
+      if (targetDistrict) {
+        updated = updated
+          .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, `$1 ${targetDistrict}`)
+          .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, `$1 ${targetDistrict}`)
+          .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, targetDistrict)
+          .replace(/\b(?:greater\s+)?london\b/gi, targetDistrict);
+      } else {
+        updated = updated
+          .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, "")
+          .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, "")
+          .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, "")
+          .replace(/\b(?:greater\s+)?london\b/gi, "");
+      }
+    }
+
+    // 2. Multi-location: replace any sibling district names with the target district.
+    //    This corrects queries where the LLM used the wrong venue for this slot.
+    if (districts.length > 1 && targetDistrict) {
+      for (const d of districts) {
+        if (d === targetDistrict) continue;
+        updated = updated
+          .replace(new RegExp(`\\b(in|around|across|near)\\s+${esc(d)}\\b`, "gi"), `$1 ${targetDistrict}`)
+          .replace(new RegExp(`\\b${esc(d)}\\b`, "gi"), targetDistrict);
+      }
+    }
+
+    // 3. Replace city-wide term with the target district (e.g. "in Bristol" → "in Stokes Croft")
+    if (cityRegex && cityStandaloneRegex) {
+      if (targetDistrict) {
+        updated = updated
+          .replace(cityRegex, `$1 ${targetDistrict}`)
+          .replace(cityStandaloneRegex, targetDistrict);
+      } else {
+        updated = updated.replace(cityRegex, "").replace(cityStandaloneRegex, "");
+      }
     }
 
     return updated.replace(/\s{2,}/g, " ").trim();
@@ -145,7 +225,7 @@ async function generateIntents(profile: BusinessProfile): Promise<string[]> {
     messages: [
       {
         role: "system",
-        content: `You are an expert in consumer search behaviour for local London businesses.
+        content: `You are an expert in consumer search behaviour for local businesses.
 
 Generate exactly 12 customer intents for the business described below. Cover all 9 intent buckets to ensure strong query diversity:
   1. Discovery (1 intent) — finding what's available in the area
@@ -185,6 +265,17 @@ async function generateQueries(
   profile: BusinessProfile,
   intents: string[]
 ): Promise<string[]> {
+  const { districts, city } = extractLocationParts(profile.location);
+  const primaryDistrict = districts[0] ?? null;
+  // Use the primary district as the example location in the prompt
+  const areaExample = primaryDistrict ?? profile.location.split(/[,/;|]/)[0].trim();
+
+  // For multi-location businesses: instruct the LLM to split queries evenly across venues
+  const half = Math.ceil(intents.length / 2);
+  const locationRule = districts.length > 1
+    ? `The business has ${districts.length} locations. Write the first ${half} queries (intents 1–${half}) anchored to "${districts[0]}" and the remaining ${intents.length - half} queries (intents ${half + 1}–${intents.length}) anchored to "${districts[1]}". Each set must cover a variety of the intent types given.`
+    : `The business has a single location. Anchor all queries to "${areaExample}".`;
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -197,15 +288,15 @@ You are given a list of customer intents spanning different search motivations. 
 
 Rules:
 1. NEVER include the business name in any query. These are pure discovery queries.
-2. Geographic scope MUST be district/borough/neighbourhood level at most (e.g. "Soho", "Hammersmith", "South Kensington", "Shoreditch").
-3. NEVER use city-wide or region-wide phrasing like "London", "Greater London", "West London", "East London", "Central London", "North London", or "South London".
-4. If the business has multiple locations, anchor each query to a specific district/borough/neighbourhood — do NOT use proximity phrasing like "near me" or "near [postcode]".
-5. If the business appears to have a single location, keep it specific to that district/borough/neighbourhood (e.g. "personal trainers in [district]").
-6. If you cannot infer a specific district/borough/neighbourhood, prefer location-neutral phrasing over city-wide phrasing.
-7. For problem-based or persona intents, write goal-first queries (e.g. "best gym in [district] for beginner weight loss", "personal trainer in [district] for post-injury rehab").
+2. Geographic scope MUST be neighbourhood/district/borough level at most (e.g. "${areaExample}"). Never use just the city name or a broad region.
+3. NEVER use city-wide or region-wide phrasing (e.g. the full city name alone, compass directions + city, "Greater [City]").
+4. Do NOT use proximity phrasing like "near me" or "near [postcode]".
+5. ${locationRule}
+6. If you cannot infer a specific neighbourhood/district, prefer location-neutral phrasing over city-wide phrasing.
+7. For problem-based or persona intents, write goal-first queries (e.g. "best gym in ${areaExample} for beginner weight loss").
 8. Make queries sound natural — like real things people type into ChatGPT or Google.
 
-Return a JSON object with a single key "queries" containing an array of exactly 12 strings, one per intent.`,
+Return a JSON object with a single key "queries" containing an array of exactly ${intents.length} strings, one per intent.`,
       },
       {
         role: "user",
@@ -222,8 +313,7 @@ ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
   });
   const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
   const queries = Array.isArray(parsed.queries) ? parsed.queries : [];
-  const districtHint = extractDistrictHint(profile.location);
-  return enforceDistrictLevelQueries(queries, districtHint);
+  return enforceDistrictLevelQueries(queries, districts, city);
 }
 
 // ─── 1.4: Query each LLM with web search and return raw response + latency ────
@@ -414,6 +504,10 @@ const NAME_STOP_WORDS = new Set([
   "pt", "personal", "training", "trainer", "trainers",
   "restaurant", "restaurants", "cafe", "bar", "pub", "kitchen", "bistro",
   "salon", "spa", "clinic", "centre", "center", "london", "ltd", "llc", "co",
+  // Beverage & food category words
+  "coffee", "roaster", "roasters", "roastery", "bakery",
+  // Wellness & venue category words
+  "sauna", "saunas", "wellness", "rooftop",
 ]);
 
 // Common suffixes to strip from business names to find a shorter alias
@@ -449,6 +543,13 @@ function buildNameAliases(name: string): string[] {
     // Add consecutive two-token phrases (e.g. "revival training")
     for (let i = 0; i < tokens.length - 1; i++) {
       aliases.push(tokens[i] + " " + tokens[i + 1]);
+    }
+    // Also add individual distinctive tokens (>4 chars) so partial mentions are caught
+    // e.g. a response saying just "Quinta" when the business is "Quinta Pupusas"
+    for (const token of tokens) {
+      if (token.length > 4) {
+        aliases.push(token);
+      }
     }
   } else if (tokens.length === 1 && tokens[0].length > 4) {
     // Single distinctive token (e.g. "revival", "gymbox") — safe if >4 chars

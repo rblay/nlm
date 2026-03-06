@@ -62,6 +62,13 @@
 - Step-by-step progress modal replaces simple loading spinner; tracks each pipeline stage with live status
 
 **1.6 — Handle errors gracefully**
+
+**1.7 — Multi-location query distribution**
+- Currently `extractLocationParts` returns a single `district` from the location string; all 12 queries are anchored to that district
+- Businesses with multiple locations (e.g. "Brixton / Hackney, London") only generate queries for the first-listed district; secondary locations get zero query coverage
+- Fix: detect multiple districts from the location string and distribute queries across them (e.g. 6 per location for a 2-venue business)
+- Edge cases to handle: unequal distribution if number of queries isn't divisible by venue count; location-neutral intents (Logistics, Quality) that shouldn't be per-location; how to surface per-location breakdown in the debug tab
+- Priority: medium — affects multi-location businesses only, but misrepresents their visibility
 - If a URL is unreachable, show a friendly error and let the user try again
 - Cap analysis time with a timeout; show partial results if some LLM calls fail
 
