@@ -30,7 +30,7 @@ export interface BusinessProfile {
 
 // ─── Scoring pipeline (owned by scores person) ───────────────────────────────
 
-export type LLMProvider = "openai" | "anthropic" | "gemini";
+export type LLMProvider = "openai" | "perplexity" | "gemini";
 
 export interface DebugEntry {
   query: string;

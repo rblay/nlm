@@ -47,26 +47,26 @@ const FAKE_SCORE_RESULT: ScoreResult = {
   overallScore: 42,
   perLLM: [
     { llm: "openai",    score: 50, mentions: 2, totalQueries: 4 },
-    { llm: "anthropic", score: 25, mentions: 1, totalQueries: 4 },
+    { llm: "perplexity", score: 25, mentions: 1, totalQueries: 4 },
     { llm: "gemini",    score: 50, mentions: 2, totalQueries: 4 },
   ],
   intents: FAKE_INTENTS,
   queries: FAKE_QUERIES,
   debug: [
     { query: FAKE_QUERIES[0], llm: "openai",    response: "Top PT studios in Shoreditch include Apex Fitness Studio, known for bespoke strength programmes.", mentioned: true,  latencyMs: 1240 },
-    { query: FAKE_QUERIES[0], llm: "anthropic", response: "In Shoreditch you'll find Third Space and F45. Smaller boutique studios are less commonly cited.", mentioned: false, latencyMs: 2100 },
+    { query: FAKE_QUERIES[0], llm: "perplexity", response: "In Shoreditch you'll find Third Space and F45. Smaller boutique studios are less commonly cited.", mentioned: false, latencyMs: 2100 },
     { query: FAKE_QUERIES[0], llm: "gemini",    response: "Apex Fitness Studio in Shoreditch is well-regarded for personal training.", mentioned: true,  latencyMs: 980  },
     { query: FAKE_QUERIES[1], llm: "openai",    response: "For beginners in East London, PureGym and Nuffield Health are popular choices.", mentioned: false, latencyMs: 1150 },
-    { query: FAKE_QUERIES[1], llm: "anthropic", response: "East London has many gyms for beginners including several boutique studios.", mentioned: false, latencyMs: 1890 },
+    { query: FAKE_QUERIES[1], llm: "perplexity", response: "East London has many gyms for beginners including several boutique studios.", mentioned: false, latencyMs: 1890 },
     { query: FAKE_QUERIES[1], llm: "gemini",    response: "Beginners in East London often choose Apex Fitness Studio for structured onboarding.", mentioned: true,  latencyMs: 1020 },
     { query: FAKE_QUERIES[2], llm: "openai",    response: "Apex Fitness Studio offers women-focused strength programmes in Shoreditch.", mentioned: true,  latencyMs: 1310 },
-    { query: FAKE_QUERIES[2], llm: "anthropic", response: "There are several studios offering women's strength training in East London.", mentioned: false, latencyMs: 2050 },
+    { query: FAKE_QUERIES[2], llm: "perplexity", response: "There are several studios offering women's strength training in East London.", mentioned: false, latencyMs: 2050 },
     { query: FAKE_QUERIES[2], llm: "gemini",    response: "For women's strength training in Shoreditch, options include F45 and boutique studios.", mentioned: false, latencyMs: 1100 },
     { query: FAKE_QUERIES[3], llm: "openai",    response: "HIIT classes in Shoreditch are offered by Barry's Bootcamp and independent studios.", mentioned: false, latencyMs: 1200 },
-    { query: FAKE_QUERIES[3], llm: "anthropic", response: "Apex Fitness Studio offers HIIT classes in Shoreditch alongside personal training.", mentioned: true,  latencyMs: 1980 },
+    { query: FAKE_QUERIES[3], llm: "perplexity", response: "Apex Fitness Studio offers HIIT classes in Shoreditch alongside personal training.", mentioned: true,  latencyMs: 1980 },
     { query: FAKE_QUERIES[3], llm: "gemini",    response: "Popular HIIT options in Shoreditch include F45, Barry's and smaller boutique studios.", mentioned: false, latencyMs: 950  },
   ],
-  summary: "Apex Fitness Studio appears in roughly half of AI responses for branded queries but is rarely surfaced for generic discovery searches. ChatGPT and Gemini mention it for strength-focused queries, while Claude rarely surfaces it. The business is missing from high-volume beginner and HIIT queries, pointing to low content authority and absent Schema markup.",
+  summary: "Apex Fitness Studio appears in roughly half of AI responses for branded queries but is rarely surfaced for generic discovery searches. ChatGPT and Gemini mention it for strength-focused queries, while Perplexity rarely surfaces it. The business is missing from high-volume beginner and HIIT queries, pointing to low content authority and absent Schema markup.",
 };
 
 const FAKE_BLOG_CONTENT = `# 5 Things to Know Before Starting Personal Training in Shoreditch
@@ -201,7 +201,7 @@ const DEMO_STEP_LABELS: Record<string, string> = {
   analyze:   "Getting to know Quinta...",
   intents:   "Figuring out what hungry Londoners are searching for...",
   chatgpt:   "Checking if AI recommends you for pupusas in London...",
-  claude:    "Searching for Quinta across AI dining guides...",
+  perplexity: "Searching for Quinta across AI dining guides...",
   gemini:    "Scanning AI recommendations for Central American food...",
   recommend: "Spotting where Quinta flies under the radar...",
   actions:   "Cooking up the action plan...",
@@ -256,32 +256,32 @@ const DEMO_SCORE_RESULT: ScoreResult = {
   overallScore: 25,
   perLLM: [
     { llm: "openai",    score: 25, mentions: 3, totalQueries: 12 },
-    { llm: "anthropic", score: 17, mentions: 2, totalQueries: 12 },
+    { llm: "perplexity", score: 17, mentions: 2, totalQueries: 12 },
     { llm: "gemini",    score: 33, mentions: 4, totalQueries: 12 },
   ],
   intents: DEMO_INTENTS,
   queries: DEMO_QUERIES,
   debug: [
     { query: DEMO_QUERIES[0], llm: "openai",    response: "For pupusas in London, Quinta on Squarespace has been mentioned, along with a few other Latin American spots.", mentioned: true,  latencyMs: 1340 },
-    { query: DEMO_QUERIES[0], llm: "anthropic", response: "London has a growing Central American food scene. Restaurants in Brixton and Hackney serve Salvadoran dishes.", mentioned: false, latencyMs: 2210 },
+    { query: DEMO_QUERIES[0], llm: "perplexity", response: "London has a growing Central American food scene. Restaurants in Brixton and Hackney serve Salvadoran dishes.", mentioned: false, latencyMs: 2210 },
     { query: DEMO_QUERIES[0], llm: "gemini",    response: "Quinta is a Central American restaurant in London specialising in authentic pupusas.", mentioned: true,  latencyMs: 1080 },
     { query: DEMO_QUERIES[1], llm: "openai",    response: "Authentic Central American restaurants in London include a handful of spots in West and South London.", mentioned: false, latencyMs: 1150 },
-    { query: DEMO_QUERIES[1], llm: "anthropic", response: "Central American cuisine in London is underrepresented. A few pop-ups and small restaurants serve Salvadoran and Guatemalan food.", mentioned: false, latencyMs: 1990 },
+    { query: DEMO_QUERIES[1], llm: "perplexity", response: "Central American cuisine in London is underrepresented. A few pop-ups and small restaurants serve Salvadoran and Guatemalan food.", mentioned: false, latencyMs: 1990 },
     { query: DEMO_QUERIES[1], llm: "gemini",    response: "Quinta is one of the few dedicated Salvadoran restaurants in London, serving pupusas and street food.", mentioned: true,  latencyMs: 1010 },
     { query: DEMO_QUERIES[2], llm: "openai",    response: "For Salvadoran food delivery in London, options are limited — some Latin American restaurants offer similar dishes.", mentioned: false, latencyMs: 1280 },
-    { query: DEMO_QUERIES[2], llm: "anthropic", response: "Salvadoran delivery options in London are sparse. Deliveroo and Uber Eats carry a few Latin American restaurants.", mentioned: false, latencyMs: 2050 },
+    { query: DEMO_QUERIES[2], llm: "perplexity", response: "Salvadoran delivery options in London are sparse. Deliveroo and Uber Eats carry a few Latin American restaurants.", mentioned: false, latencyMs: 2050 },
     { query: DEMO_QUERIES[2], llm: "gemini",    response: "Quinta offers online ordering for their Central American menu including pupusas and tacos.", mentioned: true,  latencyMs: 980  },
     { query: DEMO_QUERIES[3], llm: "openai",    response: "Guilt-free street food in London — try places like LEON, Farmer J, or some of the Borough Market stalls.", mentioned: false, latencyMs: 1200 },
-    { query: DEMO_QUERIES[3], llm: "anthropic", response: "Healthy street food in London: LEON, Itsu, and various market stalls are popular choices.", mentioned: false, latencyMs: 1870 },
+    { query: DEMO_QUERIES[3], llm: "perplexity", response: "Healthy street food in London: LEON, Itsu, and various market stalls are popular choices.", mentioned: false, latencyMs: 1870 },
     { query: DEMO_QUERIES[3], llm: "gemini",    response: "For guilt-free street food, Quinta stands out with their 'get well fed, guilt free' ethos and fresh Central American dishes.", mentioned: true,  latencyMs: 1120 },
     { query: DEMO_QUERIES[4], llm: "openai",    response: "Best tacos near South Kensington: Tendido Cero and a few independent spots serve Latin American food in the area.", mentioned: false, latencyMs: 1310 },
-    { query: DEMO_QUERIES[4], llm: "anthropic", response: "South Kensington has a varied dining scene — for tacos and burritos, Wahaca nearby and Quinta are worth considering.", mentioned: true,  latencyMs: 2100 },
+    { query: DEMO_QUERIES[4], llm: "perplexity", response: "South Kensington has a varied dining scene — for tacos and burritos, Wahaca nearby and Quinta are worth considering.", mentioned: true,  latencyMs: 2100 },
     { query: DEMO_QUERIES[4], llm: "gemini",    response: "Near South Kensington for tacos and burritos, Quinta is one of the few spots specialising in Central American food.", mentioned: true,  latencyMs: 1040 },
     { query: DEMO_QUERIES[5], llm: "openai",    response: "Unique Central American restaurants in London — the scene is niche but growing, with a few spots in West and South London.", mentioned: true,  latencyMs: 1190 },
-    { query: DEMO_QUERIES[5], llm: "anthropic", response: "For unique Central American food, there are very few dedicated restaurants. Most Latin American spots in London focus on Mexican or Brazilian cuisine.", mentioned: false, latencyMs: 1950 },
+    { query: DEMO_QUERIES[5], llm: "perplexity", response: "For unique Central American food, there are very few dedicated restaurants. Most Latin American spots in London focus on Mexican or Brazilian cuisine.", mentioned: false, latencyMs: 1950 },
     { query: DEMO_QUERIES[5], llm: "gemini",    response: "Central American dining in London is rare — Quinta is one of the few restaurants dedicated to Salvadoran food and pupusas.", mentioned: true,  latencyMs: 1070 },
   ],
-  summary: "Quinta surfaces in roughly a quarter of AI-generated responses about London dining, but almost exclusively when the query specifically mentions pupusas or Central American food. For broader searches — healthy street food, casual Latin dining, South Kensington restaurants — it rarely appears. Gemini is most likely to mention it; Claude almost never does. The core issue is thin indexed content: no blog, no FAQ, and absent Schema markup mean AI models have little to draw on beyond the homepage.",
+  summary: "Quinta surfaces in roughly a quarter of AI-generated responses about London dining, but almost exclusively when the query specifically mentions pupusas or Central American food. For broader searches — healthy street food, casual Latin dining, South Kensington restaurants — it rarely appears. Gemini is most likely to mention it; Perplexity almost never does. The core issue is thin indexed content: no blog, no FAQ, and absent Schema markup mean AI models have little to draw on beyond the homepage.",
 };
 
 const DEMO_BLOG_CONTENT = `# Day 1: What Makes a Perfect Pupusa? The Story Behind Quinta
@@ -528,7 +528,7 @@ function getFunStepLabels(businessType: string): Partial<Record<string, string>>
     return {
       intents:   "Figuring out what hungry locals are searching for...",
       chatgpt:   "Checking if AI recommends you for local dining...",
-      claude:    "Searching for you across AI food guides...",
+      perplexity: "Searching for you across AI food guides...",
       gemini:    "Scanning AI restaurant recommendations in your area...",
       recommend: "Spotting where you're missing the spotlight...",
       actions:   "Putting together your recipe for success...",
@@ -538,7 +538,7 @@ function getFunStepLabels(businessType: string): Partial<Record<string, string>>
     return {
       intents:   "Figuring out what fitness seekers are searching for...",
       chatgpt:   "Checking if AI recommends you for local fitness...",
-      claude:    "Searching for you across AI health guides...",
+      perplexity: "Searching for you across AI health guides...",
       gemini:    "Scanning AI fitness recommendations nearby...",
       recommend: "Identifying where you're benched...",
       actions:   "Building your training plan...",
@@ -548,7 +548,7 @@ function getFunStepLabels(businessType: string): Partial<Record<string, string>>
     return {
       intents:   "Figuring out what beauty seekers are searching for...",
       chatgpt:   "Checking if AI recommends you for local beauty...",
-      claude:    "Searching for you across AI lifestyle guides...",
+      perplexity: "Searching for you across AI lifestyle guides...",
       gemini:    "Scanning AI beauty recommendations nearby...",
       recommend: "Spotting where you need a touch-up...",
       actions:   "Putting together your glow-up plan...",
@@ -557,7 +557,7 @@ function getFunStepLabels(businessType: string): Partial<Record<string, string>>
   return {
     intents:   "Figuring out what your customers are searching for...",
     chatgpt:   "Checking if AI recommends you in your category...",
-    claude:    "Searching for you across AI guides...",
+    perplexity: "Searching for you across AI guides...",
     gemini:    "Scanning AI recommendations in your area...",
     recommend: "Identifying your visibility gaps...",
     actions:   "Putting together your action plan...",
@@ -573,7 +573,7 @@ const INITIAL_STEPS: PipelineStep[] = [
   { id: "analyze",   label: "Reading your website",             status: "pending" },
   { id: "intents",   label: "Figuring out what your customers are searching for...", status: "pending" },
   { id: "chatgpt",   label: "Checking if AI recommends you...", status: "pending" },
-  { id: "claude",    label: "Searching for your business across AI guides...", status: "pending" },
+  { id: "perplexity", label: "Searching for your business across AI guides...", status: "pending" },
   { id: "gemini",    label: "Scanning AI recommendations in your area...", status: "pending" },
   { id: "recommend", label: "Identifying your visibility gaps...", status: "pending" },
   { id: "actions",   label: "Putting together your action plan...", status: "pending" },
@@ -604,9 +604,9 @@ function StepIcon({ status }: { status: StepStatus }) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const LLM_META: Record<LLMProvider, { label: string; color: string }> = {
-  openai:    { label: "ChatGPT", color: "bg-emerald-500" },
-  anthropic: { label: "Claude",  color: "bg-[#1e2d4a]"  },
-  gemini:    { label: "Gemini",  color: "bg-sky-500"    },
+  openai:     { label: "ChatGPT",    color: "bg-emerald-500" },
+  perplexity: { label: "Perplexity", color: "bg-teal-500"    },
+  gemini:     { label: "Gemini",     color: "bg-sky-500"     },
 };
 
 function scoreLabel(score: number): { label: string; color: string } {
@@ -1093,8 +1093,8 @@ export default function Home() {
       advance("analyze",   "loading");
       await wait(800);  advance("analyze",   "done"); advance("intents",   "loading");
       await wait(900);  advance("intents",   "done"); advance("chatgpt",   "loading");
-      await wait(1400); advance("chatgpt",   "done"); advance("claude",    "loading");
-      await wait(1300); advance("claude",    "done"); advance("gemini",    "loading");
+      await wait(1400); advance("chatgpt",   "done"); advance("perplexity", "loading");
+      await wait(1300); advance("perplexity", "done"); advance("gemini",    "loading");
       await wait(1100); advance("gemini",    "done"); advance("recommend", "loading");
       await wait(700);  advance("recommend", "done"); advance("actions",   "loading");
       await wait(800);  advance("actions",   "done");
@@ -1201,7 +1201,7 @@ export default function Home() {
       intentTimeoutRef.current = setTimeout(() => {
         setStep("intents", { status: "done" });
         setStep("chatgpt", { status: "loading" });
-        setStep("claude",  { status: "loading" });
+        setStep("perplexity", { status: "loading" });
         setStep("gemini",  { status: "loading" });
       }, 3000);
       try {
@@ -1218,7 +1218,7 @@ export default function Home() {
         if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
         setStep("intents", { status: "done" });
         setStep("chatgpt", { status: "done" });
-        setStep("claude",  { status: "done" });
+        setStep("perplexity", { status: "done" });
         setStep("gemini",  { status: "done" });
         setScoreResult(data);
       } catch (err) {
@@ -1226,7 +1226,7 @@ export default function Home() {
         const msg = err instanceof Error ? err.message : "Scoring failed";
         setStep("intents", { status: "error", error: msg });
         setStep("chatgpt", { status: "error" });
-        setStep("claude",  { status: "error" });
+        setStep("perplexity", { status: "error" });
         setStep("gemini",  { status: "error" });
         setError(msg);
       }
