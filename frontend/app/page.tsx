@@ -1093,8 +1093,8 @@ export default function Home() {
       advance("analyze",   "loading");
       await wait(800);  advance("analyze",   "done"); advance("intents",   "loading");
       await wait(900);  advance("intents",   "done"); advance("chatgpt",   "loading");
-      await wait(1400); advance("chatgpt",   "done"); advance("claude",    "loading");
-      await wait(1300); advance("claude",    "done"); advance("gemini",    "loading");
+      await wait(1400); advance("chatgpt",   "done"); advance("perplexity", "loading");
+      await wait(1300); advance("perplexity", "done"); advance("gemini",    "loading");
       await wait(1100); advance("gemini",    "done"); advance("recommend", "loading");
       await wait(700);  advance("recommend", "done"); advance("actions",   "loading");
       await wait(800);  advance("actions",   "done");

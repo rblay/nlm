@@ -17,7 +17,7 @@
 |---|---|
 | Business extraction, intent generation, query generation | OpenAI gpt-4o-mini |
 | Presence scoring | OpenAI gpt-4o-mini (Responses API + web_search) |
-| Presence scoring | Anthropic claude-haiku-4-5 (web_search_20250305) |
+| Presence scoring | Perplexity sonar (OpenAI-compatible SDK, native web search) |
 | Presence scoring | Google gemini-2.5-flash (@google/genai SDK + googleSearch) |
 | Recommendation generation | OpenAI gpt-4o-mini |
 | Blog post + FAQ generation | OpenAI gpt-4o-mini |
@@ -28,7 +28,7 @@
 - **queryCount**: All 12 intents/queries generated; only top N sent to LLMs (frontend default 12, configurable 1–12)
 - **Scoring**: `mentions / total_queries × 100` per LLM; overall = average across 3 LLMs
 - **Detection**: Fuzzy alias matching via `buildNameAliases()` — strips business-type suffixes, checks domain stem; case-insensitive
-- **Anthropic rate limiting**: Batched 3-at-a-time with 2s inter-batch delay + retry-with-backoff on 429
+- **Parallelism**: All 3 scoring providers run fully in parallel (no batching). Perplexity replaced Anthropic — sonar's native single-pass search removes the multi-turn tool loop that caused ~4× slower responses and required rate-limit batching
 - **Shared types**: `frontend/lib/types.ts`
 - **Google SDK**: `@google/genai` (NOT `@google/generative-ai`); model: `gemini-2.5-flash`
 
@@ -57,7 +57,7 @@
 ## Env vars required
 ```
 OPENAI_API_KEY=...
-ANTHROPIC_API_KEY=...
+PERPLEXITY_API_KEY=...      # perplexity.ai/settings/api
 GEMINI_API_KEY=...          # Google AI Studio key (AIzaSy...), NOT a Cloud Console key
 GOOGLE_PLACES_API_KEY=...   # Places API (New) — optional, falls back gracefully
 ```
