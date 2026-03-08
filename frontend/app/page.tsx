@@ -1475,12 +1475,12 @@ export default function Home() {
                 )}
               </form>
 
-              {/* Analyze, Measure, Improve */}
+              {/* Measure, Recommend, Implement */}
               <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
                 {[
-                  { step: "01", title: "Analyze", desc: "We examine your website to understand your business, products, and positioning." },
-                  { step: "02", title: "Measure",  desc: "We query multiple LLMs to see how, and if, they mention your business." },
-                  { step: "03", title: "Improve",  desc: "We deliver tailored recommendations to boost your AI visibility." },
+                  { step: "01", title: "Measure",   desc: "We query multiple LLMs to see how, and if, they mention your business." },
+                  { step: "02", title: "Recommend", desc: "We deliver tailored recommendations grounded in observable signals." },
+                  { step: "03", title: "Implement", desc: "Our agent takes action to continuously improve your AI visibility." },
                 ].map(({ step, title, desc }) => (
                   <div key={step} className="space-y-2">
                     <span className="text-xs font-mono text-[#1e2d4a]/40">{step}</span>
