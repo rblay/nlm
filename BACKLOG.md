@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch feature/recommendations-ui)
+## Current State (as of March 2026, branch feature/about-team-section)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -166,6 +166,12 @@ Goal: give business owners ready-to-use content and instructions based on their 
 - Shared `Header` and `Footer` components added to root layout
 - Pages: LLM Score (`/`), About (`/about`), Pricing (`/pricing`), Careers (`/careers`)
 - Careers page live with three role listings (Sales, AI Engineer, Product Marketing Manager)
+
+**5.5 ✅ — Team section on About page**
+- Two co-founder cards (Rafael Caspary Blay, Nicolas Raffel Torrebiarte) with photo, role, bio, and LinkedIn link
+- Name clicks through to LinkedIn; photo is a rounded square
+- "Join the team" CTA button links to `/careers`
+- Photos served from `public/` (`rafael.jpg`, `nicolas.jpg`)
 
 **5.4 ✅ — Pricing page content**
 - Three tiers: Discover ($49/mo), Optimize ($99/mo), Grow ($199/mo)
