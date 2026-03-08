@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch feature/about-team-section)
+## Current State (as of March 2026, branch fix/pricing-cosmetic)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -166,6 +166,10 @@ Goal: give business owners ready-to-use content and instructions based on their 
 - Shared `Header` and `Footer` components added to root layout
 - Pages: LLM Score (`/`), About (`/about`), Pricing (`/pricing`), Careers (`/careers`)
 - Careers page live with three role listings (Sales, AI Engineer, Product Marketing Manager)
+
+**5.6 ✅ — Pricing page cosmetic fixes**
+- Replaced "Claude" with "Perplexity" in feature list and header copy (reflects actual LLM providers)
+- "Get started" buttons on all three tiers now open the lead capture modal (email → success state)
 
 **5.5 ✅ — Team section on About page**
 - Two co-founder cards (Rafael Caspary Blay, Nicolas Raffel Torrebiarte) with photo, role, bio, and LinkedIn link

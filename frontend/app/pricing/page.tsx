@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 const tiers = [
   {
     name: "Discover",
@@ -6,7 +10,7 @@ const tiers = [
     description:
       "Get a clear picture of how AI assistants describe your business today, and a prioritised list of exactly what to improve.",
     features: [
-      "Monthly AI visibility score across ChatGPT, Claude & Gemini",
+      "Monthly AI visibility score across ChatGPT, Perplexity & Gemini",
       "Full recommendations report with gap analysis",
       "Ready-to-use action cards: schema markup, meta description, FAQ draft, blog post",
     ],
@@ -48,9 +52,91 @@ const tiers = [
   },
 ];
 
+function LeadCaptureModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-[#1e2d4a]/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[#9aa3af] hover:text-[#1e2d4a] transition-colors text-lg leading-none"
+        >
+          ✕
+        </button>
+
+        {submitted ? (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#1e2d4a]" style={{ fontFamily: "var(--font-playfair)" }}>
+              You&apos;re on the list.
+            </h2>
+            <p className="text-sm text-[#6b7a8d] leading-relaxed">
+              We&apos;ll be in touch shortly to discuss how NLM can improve your AI visibility.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-2 text-xs text-[#9aa3af] hover:text-[#1e2d4a] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#9aa3af] mb-2">
+                NLM
+              </p>
+              <h2 className="text-2xl font-bold text-[#1e2d4a] leading-snug" style={{ fontFamily: "var(--font-playfair)" }}>
+                Let the agent do it for you.
+              </h2>
+              <p className="text-sm text-[#6b7a8d] leading-relaxed mt-3">
+                The NLM Marketing Agent handles your AI visibility improvements end-to-end — from publishing blog posts to updating your Schema markup. Leave your email and we&apos;ll reach out.
+              </p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@yourbusiness.com"
+                required
+                className="w-full px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-[#ece8e1]/40 text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/25 text-sm"
+              />
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#1e2d4a] text-white font-semibold text-sm hover:bg-[#2c3e70] transition-colors"
+              >
+                Get early access →
+              </button>
+            </form>
+            <p className="text-xs text-[#9aa3af] text-center">
+              No spam. We&apos;ll only use this to follow up about NLM.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PricingPage() {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <main className="flex-1 px-6 py-20">
+      {showModal && <LeadCaptureModal onClose={() => setShowModal(false)} />}
+
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-16">
         <h1
@@ -60,7 +146,7 @@ export default function PricingPage() {
           Simple, transparent pricing
         </h1>
         <p className="text-[#1e2d4a]/60 text-base leading-relaxed">
-          Every plan includes a full AI visibility score across ChatGPT, Claude,
+          Every plan includes a full AI visibility score across ChatGPT, Perplexity,
           and Gemini. Upgrade to let our agent handle the improvements for you.
         </p>
       </div>
@@ -164,6 +250,7 @@ export default function PricingPage() {
 
             {/* CTA */}
             <button
+              onClick={() => setShowModal(true)}
               className={`w-full py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 cursor-pointer ${
                 tier.highlight
                   ? "bg-white text-[#1e2d4a]"
