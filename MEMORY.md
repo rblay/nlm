@@ -8,8 +8,9 @@
 3. `/api/score` generates 12 customer intents across all 9 GEO buckets → 12 queries → queries all 3 LLMs with live web search → per-LLM scores + plain-English summary
 4. `/api/recommend` analyses observable signals, returns prioritised gap-based recommendations
 5. `/api/actions` generates copy-paste action cards from signal gaps (blog post + FAQ via GPT-4o-mini, template fallback)
-6. Frontend: dark NLM-branded UI, collapsible "Your Business" card, two-column score section, flipable "Recommended Improvements" carousel, debug panel
-7. Step-by-step progress modal tracks each pipeline stage with live status
+6. `/api/improve` fires after `/api/score` with real queries + missed queries; generates query-aligned "Boost what's working" improvement cards for signals already present (blog relevance, schema depth, title/meta language, social, GBP, review response)
+7. Frontend: light NLM-branded UI, collapsible "Your Business" card, two-column score section, flipable "Recommended Improvements" carousel, "Boost what's working" flip carousel (shown when recommendations ≤ 3), debug panel
+8. Step-by-step progress modal tracks each pipeline stage including "improve" step
 8. Testing mode dropdown (All / Score Only / Rec Only / Fake Data) + configurable queries per LLM (1–12)
 
 ### LLMs in use
@@ -21,6 +22,7 @@
 | Presence scoring | Google gemini-2.5-flash (@google/genai SDK + googleSearch) |
 | Recommendation generation | OpenAI gpt-4o-mini |
 | Blog post + FAQ generation | OpenAI gpt-4o-mini |
+| Improvement generation (query-aligned) | OpenAI gpt-4o-mini |
 
 ### Key implementation details
 - **Query generation**: Two-step — 12 intents across 9 GEO buckets; Step 2 turns each into a location-aware discovery query (no business name, area-anchored, goal-first for problem intents)
@@ -42,6 +44,7 @@
 - **Your Business**: always shows name/type/location + truncated description (expand inline); toggle reveals services + signals (4/5 shown initially with expand)
 - **AI Visibility Score**: two-column (scores left, summary right) + full-width CTA row below: "Hire the NLM Marketing Agent" navy button → lead capture modal
 - **Recommended Improvements**: combined recs + actions; flipable carousel with ‹/› arrows + nav dots; 88%/12% peek; card back has accordion for FAQ/blog (per-item expand + copy), code block for schema, + "Hire the NLM Marketing Agent" CTA pinned at bottom
+- **Boost what's working**: flip carousel shown when recommendations ≤ 3; powered by `/api/improve` using real missed query data; front shows potential badge + gap; back shows next step + "Automate this with the NLM Agent →" CTA; "improve" pipeline step in progress modal
 - **Lead capture modal**: email input only, dummy form, success state confirmation; shared by score card and carousel cards
 - **Flip card CSS**: in `globals.css` — `.flip-container`, `.flip-card-inner.is-flipped`, `.flip-card-face`, `.flip-card-back`; overflow-y on inner content divs, not the face
 - **Fake data**: 4 cards — schema (code), blog post (accordion), FAQ (accordion with 8 Q&As), GBP photos (steps); matching 4 recommendations

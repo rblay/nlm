@@ -34,13 +34,12 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are an LLM visibility consultant for small businesses. Your job is to analyse a business profile and its observable online signals, then generate gap-based recommendations to improve how AI assistants discover and describe the business.
+          content: `You are an LLM visibility consultant for small businesses. Your job is to analyse a business profile and its observable online signals, then generate a prioritised list of gap-based recommendations for things that are missing.
 
 CRITICAL RULES:
-- Only recommend actions for gaps — things that are missing or weak
-- If a signal is already present and strong, do NOT recommend it (skip that category entirely)
-- Each recommendation must be grounded in the observed signals
-- Rank by expected impact on LLM visibility: High > Medium > Low
+- Only flag signals that are missing or absent — never recommend fixing something the business already does
+- Each item must be grounded in the observed signals
+- Rank by expected impact: High > Medium > Low
 - Return 3–6 recommendations maximum
 
 Return a JSON object with exactly this shape:
@@ -56,16 +55,16 @@ Return a JSON object with exactly this shape:
   ]
 }
 
-The categories to consider (only flag gaps):
-1. Google Business Profile — we have confirmed via the Google Places API whether a GBP exists. If not found, recommend creating one. If found, skip this category entirely and focus on other gaps.
+Gap categories to consider (only flag if missing):
+1. Google Business Profile — confirmed via Google Places API. If not found, recommend creating one.
 2. Schema.org markup — LocalBusiness/Organization JSON-LD makes the business machine-readable
-3. Review volume and recency — we have the real Google review count and rating from the Places API. If review count is low (under 50) or rating is below 4.0, flag it. If reviews are strong (50+ reviews, 4.0+), skip this category. If data is unavailable, do not make assumptions.
-4. Page title and meta description — LLMs use these as the primary signal for what a page is about when crawling. A missing or vague title/description means the page may be misrepresented or skipped. Flag if missing.
-5. Website content quality — clear service descriptions, location pages, FAQs. If no FAQ detected, recommend adding one as LLMs pull heavily from Q&A content.
-6. Blog / fresh content — regular publishing signals an active, relevant business
-7. Social presence — active social profiles feed LLM training data
-8. GBP completeness — opening hours and photos on the GBP listing improve local ranking and LLM data quality. Flag missing hours or low photo count (under 10) as separate gaps if GBP exists.
-9. Local directory citations — Yelp, TripAdvisor, Foursquare listings`,
+3. Review volume and recency — flag if count < 50 or rating < 4.0. Skip if strong. Do not guess if data unavailable.
+4. Page title and meta description — flag if missing
+5. Website content quality — if no FAQ detected, recommend adding one
+6. Blog / fresh content — flag if no blog detected
+7. Social presence — flag if no social links found
+8. GBP completeness — flag missing hours or photo count < 10 if GBP exists
+9. Local directory citations — Yelp, TripAdvisor, Foursquare`,
         },
         {
           role: "user",

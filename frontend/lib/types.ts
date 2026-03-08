@@ -17,6 +17,8 @@ export interface ObservableSignals {
   gbpPhotoCount: number | null;        // number of photos on the GBP listing
   reviewCount: number | null;          // from Google Places API, or visible on page if Places unavailable
   reviewRating: number | null;         // from Google Places API, or visible on page if Places unavailable
+  blogPostDates: string[] | null;      // ISO date strings of detected blog posts (from /blog or /news page)
+  faqQuestions: string[] | null;       // extracted FAQ question text (from /faq page or JSON-LD)
 }
 
 export interface BusinessProfile {
@@ -74,6 +76,14 @@ export interface RecommendationResult {
   recommendations: Recommendation[];
 }
 
+export interface Improvement {
+  title: string;
+  whatYouHave: string;                 // what signal was detected (positive framing)
+  gap: string;                         // what's weak about it for LLM visibility
+  potential: RecommendationImpact;
+  action: string;                      // one concrete next step
+}
+
 // ─── Actions pipeline ─────────────────────────────────────────────────────────
 
 export type ActionContentType = "code" | "text" | "steps" | "markdown";
@@ -104,6 +114,11 @@ export interface ScoreResponse extends ScoreResult {}
 
 // POST /api/recommend — analyse signals, return prioritised recommendations
 export interface RecommendResponse extends RecommendationResult {}
+
+// POST /api/improve — generate query-aligned improvement suggestions after score completes
+export interface ImproveResponse {
+  improvements: Improvement[];
+}
 
 // POST /api/actions — generate copy-paste action cards from signals
 export interface ActionsResponse extends ActionsResult {}

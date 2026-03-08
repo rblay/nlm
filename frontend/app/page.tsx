@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import type {
   BusinessProfile,
+  DebugEntry,
+  Improvement,
   Recommendation,
   RecommendationImpact,
   ScoreResult,
@@ -26,6 +28,7 @@ const FAKE_PROFILE: BusinessProfile = {
     socialLinks: ["https://instagram.com/apexfitnesslondon"],
     hasMapsEmbed: false, hasGoogleBusinessProfile: true, gbpHasHours: true,
     gbpPhotoCount: 4, reviewCount: 31, reviewRating: 4.7,
+    blogPostDates: null, faqQuestions: null,
   },
 };
 
@@ -205,6 +208,7 @@ const DEMO_STEP_LABELS: Record<string, string> = {
   gemini:    "Scanning AI recommendations for Central American food...",
   recommend: "Spotting where Quinta flies under the radar...",
   actions:   "Cooking up the action plan...",
+  improve:   "Identifying what to double down on...",
 };
 
 const DEMO_PROFILE: BusinessProfile = {
@@ -219,6 +223,7 @@ const DEMO_PROFILE: BusinessProfile = {
     socialLinks: ["https://www.instagram.com/quintapupusas/"],
     hasMapsEmbed: false, hasGoogleBusinessProfile: true, gbpHasHours: true,
     gbpPhotoCount: 6, reviewCount: 48, reviewRating: 4.6,
+    blogPostDates: null, faqQuestions: null,
   },
 };
 
@@ -577,6 +582,7 @@ const INITIAL_STEPS: PipelineStep[] = [
   { id: "gemini",    label: "Scanning AI recommendations in your area...", status: "pending" },
   { id: "recommend", label: "Identifying your visibility gaps...", status: "pending" },
   { id: "actions",   label: "Putting together your action plan...", status: "pending" },
+  { id: "improve",   label: "Finding what could work harder...", status: "pending" },
 ];
 
 function StepIcon({ status }: { status: StepStatus }) {
@@ -971,6 +977,82 @@ function ImprovementFlipCard({
   );
 }
 
+// ─── Improvement Card (flip card for "Boost what's working" carousel) ────────
+
+function ImprovementCard({
+  improvement,
+  isFlipped,
+  onFlip,
+  onHireAgent,
+}: {
+  improvement: Improvement;
+  isFlipped: boolean;
+  onFlip: () => void;
+  onHireAgent: () => void;
+}) {
+  return (
+    <div className="flip-container w-full" style={{ height: "460px" }}>
+      <div className={`flip-card-inner w-full h-full${isFlipped ? " is-flipped" : ""}`}>
+
+        {/* ── Front: What you have + gap ── */}
+        <div className="flip-card-face flip-card-front bg-white border border-[#1e2d4a]/10 rounded-2xl p-6 flex flex-col shadow-sm">
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap font-semibold ${IMPACT_STYLES[improvement.potential]}`}>
+              {improvement.potential} potential
+            </span>
+          </div>
+          <h3 className="text-lg font-bold text-[#1e2d4a] leading-snug mb-4">
+            {improvement.title}
+          </h3>
+          <div className="text-xs bg-[#1e2d4a]/[0.04] rounded-xl px-4 py-3 leading-relaxed mb-4">
+            <span className="text-[#6b7a8d] font-medium">What you have: </span>
+            <span className="text-[#9aa3af]">{improvement.whatYouHave}</span>
+          </div>
+          <p className="text-sm text-[#6b7a8d] leading-relaxed">
+            {improvement.gap}
+          </p>
+          <div className="flex-1" />
+          <button
+            onClick={onFlip}
+            className="mt-6 w-full py-3 rounded-xl bg-[#1e2d4a] text-white font-semibold text-sm hover:bg-[#2c3e70] transition-colors"
+          >
+            What to do next →
+          </button>
+        </div>
+
+        {/* ── Back: Next step ── */}
+        <div className="flip-card-face flip-card-back bg-white border border-[#1e2d4a]/15 rounded-2xl p-6 flex flex-col shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#1e2d4a]">
+              Next step
+            </p>
+            <button
+              onClick={onFlip}
+              className="text-xs text-[#9aa3af] hover:text-[#1e2d4a] transition-colors"
+            >
+              ← Back
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="bg-[#1e2d4a]/[0.04] rounded-xl px-4 py-4">
+              <p className="text-sm text-[#1e2d4a]/70 leading-relaxed">{improvement.action}</p>
+            </div>
+          </div>
+          <div className="pt-3 mt-3 border-t border-[#1e2d4a]/[0.08] flex-shrink-0">
+            <button
+              onClick={onHireAgent}
+              className="w-full py-2.5 rounded-xl bg-[#1e2d4a] text-white font-semibold text-xs hover:bg-[#2c3e70] active:scale-[0.98] transition-all tracking-wide"
+            >
+              Automate this with the NLM Agent →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -995,6 +1077,8 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState(false);
+  const [improvements, setImprovements] = useState<Improvement[]>([]);
+  const [improvementsCarouselIndex, setImprovementsCarouselIndex] = useState(0);
   const [actions, setActions] = useState<ActionCard[]>([]);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [testingMode, setTestingMode] = useState<TestingMode>("all");
@@ -1008,6 +1092,7 @@ export default function Home() {
   const [signalsExpanded, setSignalsExpanded] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
+  const [flippedImprovements, setFlippedImprovements] = useState<Set<number>>(new Set());
   const carouselRef = useRef<HTMLDivElement>(null);
   const [cardWidth, setCardWidth] = useState(0);
 
@@ -1047,6 +1132,15 @@ export default function Home() {
     });
   }
 
+  function flipImprovementCard(i: number) {
+    setFlippedImprovements((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  }
+
+
   function resetState() {
     setSubmitted(false);
     setProfile(null);
@@ -1057,10 +1151,13 @@ export default function Home() {
     setRecommendations([]);
     setRecommendationsLoading(false);
     setRecommendationsError(false);
+    setImprovements([]);
+    setImprovementsCarouselIndex(0);
     setActions([]);
     setActionsLoading(false);
     setCarouselIndex(0);
     setFlippedCards(new Set());
+    setFlippedImprovements(new Set());
     setProfileCollapsed(true);
     setDescExpanded(false);
     setServicesExpanded(false);
@@ -1096,8 +1193,8 @@ export default function Home() {
       await wait(1400); advance("chatgpt",   "done"); advance("perplexity", "loading");
       await wait(1300); advance("perplexity", "done"); advance("gemini",    "loading");
       await wait(1100); advance("gemini",    "done"); advance("recommend", "loading");
-      await wait(700);  advance("recommend", "done"); advance("actions",   "loading");
-      await wait(800);  advance("actions",   "done");
+      await wait(700);  advance("recommend", "done"); advance("actions",   "loading"); advance("improve", "loading");
+      await wait(800);  advance("actions",   "done"); advance("improve",   "done");
       await wait(300);
       setProfile(DEMO_PROFILE);
       setScoreResult(DEMO_SCORE_RESULT);
@@ -1117,10 +1214,13 @@ export default function Home() {
     setRecommendations([]);
     setRecommendationsLoading(false);
     setRecommendationsError(false);
+    setImprovements([]);
+    setImprovementsCarouselIndex(0);
     setActions([]);
     setActionsLoading(false);
     setCarouselIndex(0);
     setFlippedCards(new Set());
+    setFlippedImprovements(new Set());
 
     const activeSteps: PipelineStep[] = [
       { id: "analyze",   label: "Reading your website",             status: "pending" },
@@ -1129,6 +1229,7 @@ export default function Home() {
         { id: "chatgpt",   label: "Checking if AI recommends you...", status: "pending" as StepStatus },
         { id: "perplexity", label: "Searching for your business across AI guides...", status: "pending" as StepStatus },
         { id: "gemini",    label: "Scanning AI recommendations in your area...", status: "pending" as StepStatus },
+        { id: "improve",   label: "Finding what could work harder...", status: "pending" as StepStatus },
       ] : []),
       ...(runRecommendations ? [
         { id: "recommend", label: "Identifying your visibility gaps...", status: "pending" as StepStatus },
@@ -1221,6 +1322,30 @@ export default function Home() {
         setStep("perplexity", { status: "done" });
         setStep("gemini",  { status: "done" });
         setScoreResult(data);
+
+        // Fire /api/improve with real query + miss data (non-blocking)
+        const missedQueries = (data.queries as string[]).filter((q: string) =>
+          (data.debug as DebugEntry[])
+            .filter((d: DebugEntry) => d.query === q && !d.error)
+            .every((d: DebugEntry) => !d.mentioned)
+        );
+        setStep("improve", { status: "loading" });
+        fetch("/api/improve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile: fetchedProfile,
+            queries: data.queries,
+            missedQueries,
+            overallScore: data.overallScore,
+          }),
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.improvements) setImprovements(d.improvements);
+            setStep("improve", { status: "done" });
+          })
+          .catch(() => setStep("improve", { status: "error" }));
       } catch (err) {
         if (intentTimeoutRef.current) clearTimeout(intentTimeoutRef.current);
         const msg = err instanceof Error ? err.message : "Scoring failed";
@@ -1236,8 +1361,9 @@ export default function Home() {
   const hasStepError = steps.some((s) => s.status === "error");
   const isRunning    = steps.some((s) => s.status === "loading");
 
-  const improvements = recommendations.map((rec, i) => ({ recommendation: rec, action: actions[i] }));
-  const totalCards = improvements.length;
+  const carouselItems = recommendations.map((rec, i) => ({ recommendation: rec, action: actions[i] }));
+  const totalCards = carouselItems.length;
+  const improvementsLoading = steps.some((s) => s.id === "improve" && s.status === "loading");
 
   return (
     <main className="min-h-screen bg-[#ece8e1] text-[#1e2d4a] flex flex-col">
@@ -1544,12 +1670,12 @@ export default function Home() {
                   <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-3">
                     <p className="text-xs text-red-500">Could not generate recommendations, check your OPENAI_API_KEY.</p>
                   </div>
-                ) : (recommendationsLoading || improvements.length > 0) && (
+                ) : (recommendationsLoading || carouselItems.length > 0) && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af]">Recommended Improvements</p>
-                        {!recommendationsLoading && improvements.length > 0 && (
+                        {!recommendationsLoading && carouselItems.length > 0 && (
                           <p className="text-xs text-[#9aa3af] mt-0.5">
                             {actionsLoading ? "Generating action plans..." : "Flip a card to see the action plan"}
                           </p>
@@ -1563,7 +1689,7 @@ export default function Home() {
                       )}
                     </div>
 
-                    {improvements.length > 0 && (
+                    {carouselItems.length > 0 && (
                       <>
                         {/* Carousel with arrows */}
                         <div className="relative">
@@ -1584,7 +1710,7 @@ export default function Home() {
                                 transform: cardWidth > 0 ? `translateX(-${carouselIndex * (cardWidth + 16)}px)` : "none",
                               }}
                             >
-                              {improvements.map((item, i) => (
+                              {carouselItems.map((item, i) => (
                                 <div
                                   key={i}
                                   style={{ width: cardWidth > 0 ? `${cardWidth}px` : "88%", flexShrink: 0, marginRight: "16px" }}
@@ -1615,7 +1741,7 @@ export default function Home() {
                         {/* Dots */}
                         {totalCards > 1 && (
                           <div className="flex items-center justify-center gap-2 pt-1">
-                            {improvements.map((_, i) => (
+                            {carouselItems.map((_, i) => (
                               <button
                                 key={i}
                                 onClick={() => setCarouselIndex(i)}
@@ -1632,6 +1758,94 @@ export default function Home() {
                     )}
                   </div>
                 )
+              )}
+
+              {/* ── Boost what's working ── */}
+              {profile && !recommendationsLoading && recommendations.length <= 3 && (improvementsLoading || improvements.length > 0) && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af]">Boost what&apos;s working</p>
+                      <p className="text-xs text-[#9aa3af] mt-0.5">
+                        {improvementsLoading
+                          ? "Analysing your query misses..."
+                          : "You're already doing these — here's how to make them work harder"}
+                      </p>
+                    </div>
+                    {improvementsLoading && (
+                      <div className="flex items-center gap-1.5 text-xs text-[#9aa3af]">
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-[#1e2d4a]/20 border-t-[#1e2d4a] animate-spin" />
+                        Analysing...
+                      </div>
+                    )}
+                  </div>
+
+                  {improvements.length > 0 && (
+                  <>
+                  <div className="relative">
+                    {/* Prev arrow */}
+                    {improvementsCarouselIndex > 0 && (
+                      <button
+                        onClick={() => setImprovementsCarouselIndex((i) => i - 1)}
+                        className="absolute left-0 z-10 top-[220px] -translate-y-1/2 -translate-x-3 w-9 h-9 rounded-full bg-white border border-[#1e2d4a]/15 shadow-md flex items-center justify-center hover:bg-[#1e2d4a] hover:text-white text-[#1e2d4a] transition-colors text-sm font-medium"
+                      >
+                        ‹
+                      </button>
+                    )}
+
+                    <div className="overflow-hidden w-full">
+                      <div
+                        className="flex transition-transform duration-300 ease-in-out"
+                        style={{
+                          transform: cardWidth > 0 ? `translateX(-${improvementsCarouselIndex * (cardWidth + 16)}px)` : "none",
+                        }}
+                      >
+                        {improvements.map((imp, i) => (
+                          <div
+                            key={i}
+                            style={{ width: cardWidth > 0 ? `${cardWidth}px` : "88%", flexShrink: 0, marginRight: "16px" }}
+                          >
+                            <ImprovementCard
+                              improvement={imp}
+                              isFlipped={flippedImprovements.has(i)}
+                              onFlip={() => flipImprovementCard(i)}
+                              onHireAgent={() => setShowLeadModal(true)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Next arrow */}
+                    {improvementsCarouselIndex < improvements.length - 1 && (
+                      <button
+                        onClick={() => setImprovementsCarouselIndex((i) => i + 1)}
+                        className="absolute right-0 z-10 top-[220px] -translate-y-1/2 translate-x-3 w-9 h-9 rounded-full bg-white border border-[#1e2d4a]/15 shadow-md flex items-center justify-center hover:bg-[#1e2d4a] hover:text-white text-[#1e2d4a] transition-colors text-sm font-medium"
+                      >
+                        ›
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dots */}
+                  {improvements.length > 1 && (
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      {improvements.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setImprovementsCarouselIndex(i)}
+                          className={`rounded-full transition-all duration-200 ${
+                            i === improvementsCarouselIndex
+                              ? "bg-[#1e2d4a] w-5 h-2"
+                              : "bg-[#1e2d4a]/20 hover:bg-[#1e2d4a]/40 w-2 h-2"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  </>
+                  )}
+                </div>
               )}
 
               {/* ── Debug panel ── */}

@@ -4,6 +4,88 @@ import type { BusinessProfile, ObservableSignals } from "@/lib/types";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+async function fetchSecondary(url: string, timeoutMs = 3000): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; LLMRankBot/1.0)" },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
+function extractBlogPostDates(html: string): string[] {
+  const dates: string[] = [];
+  const today = new Date();
+
+  // 1. <time datetime="2025-03-01"> — most reliable
+  const timeMatches = html.matchAll(/<time[^>]+datetime=["']([^"']+)["']/gi);
+  for (const match of timeMatches) {
+    if (/^\d{4}-\d{2}-\d{2}/.test(match[1])) {
+      dates.push(match[1].slice(0, 10));
+    }
+  }
+
+  // 2. data-date / data-publish-date attributes
+  const dataMatches = html.matchAll(/data-(?:date|publish-?date|post-date|created)=["'](\d{4}-\d{2}-\d{2})/gi);
+  for (const match of dataMatches) {
+    dates.push(match[1]);
+  }
+
+  // 3. Relative dates ("3 days ago", "2 weeks ago", "1 month ago")
+  //    Common on Wix, Squarespace and similar platforms
+  const relMatches = html.matchAll(/(\d+)\s+(day|week|month)s?\s+ago/gi);
+  for (const match of relMatches) {
+    const n = parseInt(match[1]);
+    const unit = match[2].toLowerCase();
+    const d = new Date(today);
+    if (unit === "day")   d.setDate(d.getDate() - n);
+    else if (unit === "week")  d.setDate(d.getDate() - n * 7);
+    else if (unit === "month") d.setMonth(d.getMonth() - n);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+
+  return [...new Set(dates)].sort().reverse().slice(0, 10);
+}
+
+function extractFaqQuestions(html: string): string[] {
+  const questions: string[] = [];
+
+  // Try JSON-LD FAQPage schema first
+  const ldMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of ldMatches) {
+    try {
+      const json = JSON.parse(match[1]);
+      const entities =
+        json["@type"] === "FAQPage" ? json.mainEntity :
+        Array.isArray(json) ? json.find((j: { "@type": string }) => j["@type"] === "FAQPage")?.mainEntity :
+        null;
+      if (Array.isArray(entities)) {
+        for (const item of entities) {
+          if (item.name) questions.push(item.name);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+  if (questions.length > 0) return questions.slice(0, 10);
+
+  // Fallback: scan <h3>/<dt> for question-like text
+  const headingMatches = html.matchAll(/<(?:h3|dt)[^>]*>([^<]{10,200})<\/(?:h3|dt)>/gi);
+  for (const match of headingMatches) {
+    const text = match[1].replace(/<[^>]+>/g, "").trim();
+    if (text.includes("?") || /^(what|how|when|where|why|can|do|is|are|will|should)/i.test(text)) {
+      questions.push(text);
+    }
+  }
+  return questions.slice(0, 10);
+}
+
 function extractSignals(html: string): ObservableSignals {
   const hasSchema = /<script[^>]+type=["']application\/ld\+json["']/i.test(html);
   const hasBlog = /href=["'][^"']*\/(blog|news)[/"']/i.test(html);
@@ -49,6 +131,8 @@ function extractSignals(html: string): ObservableSignals {
     gbpPhotoCount: null,
     reviewCount: null,
     reviewRating: null,
+    blogPostDates: null, // enriched later via secondary fetch
+    faqQuestions: null,  // enriched later via secondary fetch
   };
 }
 
@@ -113,13 +197,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "URL is required" }, { status: 400 });
   }
 
-  // Fetch the page HTML
+  // Fetch homepage + secondary pages in parallel
   let html: string;
+  let blogHtml: string | null = null;
+  let faqHtml: string | null = null;
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; LLMRankBot/1.0)" },
-    });
-    html = await res.text();
+    const baseOrigin = new URL(url).origin;
+    const [homepageRes, rawBlog, rawNews, rawFaq] = await Promise.all([
+      fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; LLMRankBot/1.0)" } }),
+      fetchSecondary(`${baseOrigin}/blog`),
+      fetchSecondary(`${baseOrigin}/news`),
+      fetchSecondary(`${baseOrigin}/faq`),
+    ]);
+    html = await homepageRes.text();
+    blogHtml = rawBlog ?? rawNews ?? null;
+    faqHtml = rawFaq;
   } catch (err) {
     console.error(`[analyze] Failed to fetch ${url}:`, err);
     return NextResponse.json({ error: "Failed to fetch URL" }, { status: 422 });
@@ -127,6 +219,20 @@ export async function POST(request: NextRequest) {
 
   // Extract observable signals from raw HTML before stripping tags
   const signals = extractSignals(html);
+
+  // Enrich with secondary page data
+  if (blogHtml) {
+    const dates = extractBlogPostDates(blogHtml);
+    if (dates.length > 0) signals.blogPostDates = dates;
+  }
+  if (faqHtml) {
+    const questions = extractFaqQuestions(faqHtml);
+    if (questions.length > 0) signals.faqQuestions = questions;
+  } else {
+    // Fallback: try to extract FAQ questions from the homepage itself
+    const questions = extractFaqQuestions(html);
+    if (questions.length > 0) signals.faqQuestions = questions;
+  }
 
   // Strip tags and collapse whitespace, cap at 3000 chars for the LLM
   const text = html
