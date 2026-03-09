@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch fix/pricing-cosmetic)
+## Current State (as of March 2026, branch fix/team-section-to-careers)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -171,10 +171,10 @@ Goal: give business owners ready-to-use content and instructions based on their 
 - Replaced "Claude" with "Perplexity" in feature list and header copy (reflects actual LLM providers)
 - "Get started" buttons on all three tiers now open the lead capture modal (email → success state)
 
-**5.5 ✅ — Team section on About page**
+**5.5 ✅ — Team section (moved to Careers page)**
 - Two co-founder cards (Rafael Caspary Blay, Nicolas Raffel Torrebiarte) with photo, role, bio, and LinkedIn link
 - Name clicks through to LinkedIn; photo is a rounded square
-- "Join the team" CTA button links to `/careers`
+- Moved from About page to Careers page; sits above the open roles list
 - Photos served from `public/` (`rafael.jpg`, `nicolas.jpg`)
 
 **5.4 ✅ — Pricing page content**
