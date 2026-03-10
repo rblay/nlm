@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch fix/team-section-to-careers)
+## Current State (as of March 2026, branch fix/loading-modal-step-labels)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -17,7 +17,7 @@
 - `/api/improve` is live — fires after `/api/score` completes; receives real queries + missed queries; generates query-aligned "Boost what's working" cards for signals already present (blog relevance, schema depth, title/meta language, social focus, GBP description, review response strategy); no frequency analysis
 - Frontend: light NLM-branded UI (Playfair Display, #1e2d4a navy, #ece8e1 cream bg); collapsible "Your Business" card; two-column AI Visibility Score; "Recommended Improvements" flipable carousel combining recommendations + actions with accordion for FAQ/blog; "Boost what's working" flip carousel (shown when recommendations ≤ 3) with query-grounded improvement cards; lead capture modal; Measure/Recommend/Implement section only shown pre-submission; debug panel
 - Multi-page structure: shared Header + Footer with nav; About page content complete; Pricing page fully built; Careers placeholder
-- Step-by-step progress modal: steps revealed sequentially, pending steps shown as gray pills; business-type-aware fun step labels (no tool names)
+- Step-by-step progress modal: all step labels visible from the start; pending steps shown in muted text, active/done in full colour; business-type-aware fun step labels (no tool names)
 - Testing mode dropdown (All / Score Only / Rec Only / Fake Data) and query count input gated behind `?dev` URL param
 - `?demo` mode: full fake Quinta Pupusas (South Kensington) data; 7-second sequential animated loading; blog first, FAQ second in carousel; 5 blog posts with Day N: schedule labels
 - `?dev` mode: shows testing/debug controls; debug panel visible
