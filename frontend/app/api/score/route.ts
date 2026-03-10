@@ -542,7 +542,8 @@ function buildNameAliases(name: string): string[] {
 function mentionsBusiness(
   response: string,
   profile: BusinessProfile,
-  url: string
+  url: string,
+  extraNames: string[] = []
 ): boolean {
   const text = response.toLowerCase();
 
@@ -557,8 +558,11 @@ function mentionsBusiness(
     // ignore malformed URL
   }
 
-  // 2. Name alias matching
-  const aliases = buildNameAliases(profile.name);
+  // 2. Name alias matching — scraped profile name + any user-supplied names
+  const aliases = [
+    ...buildNameAliases(profile.name),
+    ...extraNames.flatMap((n) => buildNameAliases(n)),
+  ];
   return aliases.some((alias) => text.includes(alias));
 }
 
@@ -566,13 +570,22 @@ function mentionsBusiness(
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { url, profile, queryCount = 12 } = body as { url: string; profile: BusinessProfile; queryCount?: number };
+  const { url, profile, queryCount = 12, businessNames } = body as { url: string; profile: BusinessProfile; queryCount?: number; businessNames?: string };
+
+  // Parse comma-separated user-supplied names into an array
+  const extraNames = businessNames
+    ? businessNames.split(",").map((n) => n.trim()).filter(Boolean)
+    : [];
 
   if (!url || !profile) {
     return NextResponse.json(
       { error: "url and profile are required" },
       { status: 400 }
     );
+  }
+
+  if (extraNames.length > 0) {
+    console.log(`[score] User-supplied names for detection: ${extraNames.join(", ")}`);
   }
 
   // 1.3 Step 1 — identify common customer intents for this business type
@@ -643,7 +656,7 @@ export async function POST(request: NextRequest) {
             query,
             llm,
             response,
-            mentioned: mentionsBusiness(response, profile, url),
+            mentioned: mentionsBusiness(response, profile, url, extraNames),
             latencyMs,
           });
         } else {

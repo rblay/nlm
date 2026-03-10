@@ -1057,6 +1057,7 @@ function ImprovementCard({
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [businessNames, setBusinessNames] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [steps, setSteps] = useState<PipelineStep[]>(INITIAL_STEPS);
   const [showModal, setShowModal] = useState(false);
@@ -1245,7 +1246,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, businessNames: businessNames.trim() || undefined }),
       });
       const contentType = res.headers.get("content-type") ?? "";
       if (!contentType.includes("application/json"))
@@ -1309,7 +1310,7 @@ export default function Home() {
         const res = await fetch("/api/score", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, profile: fetchedProfile, queryCount }),
+          body: JSON.stringify({ url, profile: fetchedProfile, queryCount, businessNames: businessNames.trim() || undefined }),
         });
         const contentType = res.headers.get("content-type") ?? "";
         if (!contentType.includes("application/json"))
@@ -1426,21 +1427,31 @@ export default function Home() {
           {!submitted ? (
             <>
               <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://yourbusiness.com"
-                    required
-                    className="flex-1 px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-white text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/30 text-sm shadow-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-[#1e2d4a] text-white rounded-xl font-semibold text-sm hover:bg-[#2c3e70] transition-colors whitespace-nowrap shadow-sm"
-                  >
-                    Analyze →
-                  </button>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://yourbusiness.com"
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-white text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/30 text-sm shadow-sm"
+                />
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={businessNames}
+                      onChange={(e) => setBusinessNames(e.target.value)}
+                      placeholder="Business name(s) — e.g. Revival, Revival Gym"
+                      className="flex-1 px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-white text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/30 text-sm shadow-sm"
+                    />
+                    <button
+                      type="submit"
+                      className="px-6 py-3 bg-[#1e2d4a] text-white rounded-xl font-semibold text-sm hover:bg-[#2c3e70] transition-colors whitespace-nowrap shadow-sm"
+                    >
+                      Analyze →
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#9aa3af] px-1">How customers refer to your business — helps AI models identify you accurately. Separate multiple names with a comma.</p>
                 </div>
                 {devMode && (
                   <div className="flex items-center gap-3 px-1 flex-wrap">
