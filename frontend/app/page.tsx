@@ -1384,13 +1384,9 @@ export default function Home() {
                 <li key={step.id} className="flex items-center gap-3">
                   <StepIcon status={step.status} />
                   <div className="min-w-0">
-                    {step.status === "pending" ? (
-                      <span className="block h-2 w-28 rounded bg-[#1e2d4a]/10" />
-                    ) : (
-                      <span className={`text-sm ${step.status === "error" ? "text-red-600" : "text-[#1e2d4a]"}`}>
-                        {step.label}
-                      </span>
-                    )}
+                    <span className={`text-sm ${step.status === "error" ? "text-red-600" : step.status === "pending" ? "text-[#1e2d4a]/40" : "text-[#1e2d4a]"}`}>
+                      {step.label}
+                    </span>
                     {step.error && (
                       <p className="text-xs text-red-500 mt-1 font-mono break-words">{step.error}</p>
                     )}
