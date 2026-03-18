@@ -64,7 +64,8 @@
 - **`X-Cache: HIT`** header returned on cache hits; `force_refresh=true` body param bypasses both caches
 - **Model version**: `DebugEntry.modelVersion` (optional field in shared types); stored in `research_queries.model_version`
 - **Mention linking**: `extractAndStoreMentions` fetches all known businesses and does case-insensitive name match at insert time; sets `business_id` + `match_confidence` (`exact` | `unmatched`)
-- **Supabase setup gotcha**: tables created via SQL editor don't auto-get grants — must run `GRANT ALL ON ALL TABLES/SEQUENCES IN SCHEMA public TO service_role` + `ALTER DEFAULT PRIVILEGES` after schema creation
+- **Two Supabase projects**: `nlm-dev` (local) and `nlm-prod` (Vercel). `.env.local` → dev keys. Vercel env vars → prod keys. Keeps test runs out of the prod dataset.
+- **Supabase setup gotcha**: tables created via SQL editor don't auto-get grants — must run `GRANT ALL ON ALL TABLES/SEQUENCES IN SCHEMA public TO service_role` + `ALTER DEFAULT PRIVILEGES` after schema creation (applies to both projects)
 - **Client**: uses `SUPABASE_SERVICE_ROLE_KEY` (not anon key) — bypasses RLS for server-side use
 - **`GET /api/admin/stats`** — returns `totalQueries`, `totalBusinesses`, `topMentioned`, `signalCorrelations`
 - **`POST /api/research/seed`** — seed a business by URL or `BusinessProfile`; runs `/api/analyze` internally
@@ -83,7 +84,7 @@ OPENAI_API_KEY=...
 PERPLEXITY_API_KEY=...      # perplexity.ai/settings/api
 GEMINI_API_KEY=...          # Google AI Studio key (AIzaSy...), NOT a Cloud Console key
 GOOGLE_PLACES_API_KEY=...   # Places API (New) — optional, falls back gracefully
-SUPABASE_URL=...                 # Project URL from Supabase dashboard → Settings → API
+SUPABASE_URL=...                 # dev project URL (nlm-dev) for local; prod project URL on Vercel
 SUPABASE_SERVICE_ROLE_KEY=...   # service_role (secret) key — NOT the anon key
 ```
 

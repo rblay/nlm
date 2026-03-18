@@ -1,10 +1,23 @@
 -- LLMRank / NLM — Database Schema
--- Run this once in the Supabase SQL editor to create all tables.
--- After creating tables, run the following to grant access to the service role:
+--
+-- There are two Supabase projects:
+--   nlm-dev  → used for local development (.env.local points here)
+--   nlm-prod → used for production (Vercel environment variables point here)
+-- Run this script in BOTH projects.
+--
+-- Setup checklist for each project:
+--   1. Run this entire script in the SQL editor
+--   2. Run the GRANT statements below
+--   3. Add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to .env.local (dev) or Vercel (prod)
+--
+-- After creating tables, grant access to the service role key used by the app:
 --   GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 --   GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 --   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
 --   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role;
+--
+-- Note: Supabase does NOT auto-grant these for tables created via raw SQL —
+-- you must run the above every time you create tables this way.
 
 -- ─── Group 1: Caching ─────────────────────────────────────────────────────────
 --
