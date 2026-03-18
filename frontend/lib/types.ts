@@ -37,6 +37,7 @@ export type LLMProvider = "openai" | "perplexity" | "gemini";
 export interface DebugEntry {
   query: string;
   llm: LLMProvider;
+  modelVersion?: string;   // e.g. "gpt-4o-mini", "sonar", "gemini-2.5-flash"
   response: string;
   mentioned: boolean;
   latencyMs: number;

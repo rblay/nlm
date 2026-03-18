@@ -8,6 +8,12 @@ import type {
   LLMProvider,
   ScoreResult,
 } from "@/lib/types";
+import {
+  computeScoreCacheKey,
+  getCachedScore,
+  setCachedScore,
+} from "@/lib/db/cache";
+import { insertQueryResults, extractAndStoreMentions } from "@/lib/db/research";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Perplexity is OpenAI-SDK-compatible — just point at a different baseURL
@@ -323,51 +329,44 @@ ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
 
 async function queryOpenAI(
   query: string
-): Promise<{ response: string; latencyMs: number }> {
+): Promise<{ response: string; latencyMs: number; modelVersion: string }> {
   const start = Date.now();
-  // Use Responses API with web_search tool so results match real ChatGPT behaviour
+  const model = "gpt-4o-mini";
   const res = await openai.responses.create({
-    model: "gpt-4o-mini",
+    model,
     tools: [{ type: "web_search" }],
     input: query,
   });
-  return {
-    response: res.output_text ?? "",
-    latencyMs: Date.now() - start,
-  };
+  return { response: res.output_text ?? "", latencyMs: Date.now() - start, modelVersion: model };
 }
 
 async function queryPerplexity(
   query: string
-): Promise<{ response: string; latencyMs: number }> {
+): Promise<{ response: string; latencyMs: number; modelVersion: string }> {
   const start = Date.now();
-  // sonar is Perplexity's fast search model — web search is native, single-pass, no tool loop
+  const model = "sonar";
   const completion = await perplexity.chat.completions.create({
-    model: "sonar",
+    model,
     messages: [{ role: "user", content: query }],
   });
   return {
     response: completion.choices[0]?.message?.content ?? "",
     latencyMs: Date.now() - start,
+    modelVersion: model,
   };
 }
 
 async function queryGemini(
   query: string
-): Promise<{ response: string; latencyMs: number }> {
+): Promise<{ response: string; latencyMs: number; modelVersion: string }> {
   const start = Date.now();
-  // gemini-2.5-flash — current generation, available on free-tier AI Studio keys
+  const model = "gemini-2.5-flash";
   const result = await genai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model,
     contents: query,
-    config: {
-      tools: [{ googleSearch: {} }],
-    },
+    config: { tools: [{ googleSearch: {} }] },
   });
-  return {
-    response: result.text ?? "",
-    latencyMs: Date.now() - start,
-  };
+  return { response: result.text ?? "", latencyMs: Date.now() - start, modelVersion: model };
 }
 
 // ─── 1.5 Bucket-level hit analysis + plain-English summary ───────────────────
@@ -570,7 +569,13 @@ function mentionsBusiness(
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { url, profile, queryCount = 12, businessNames } = body as { url: string; profile: BusinessProfile; queryCount?: number; businessNames?: string };
+  const { url, profile, queryCount = 12, businessNames, force_refresh } = body as {
+    url: string;
+    profile: BusinessProfile;
+    queryCount?: number;
+    businessNames?: string;
+    force_refresh?: boolean;
+  };
 
   // Parse comma-separated user-supplied names into an array
   const extraNames = businessNames
@@ -586,6 +591,17 @@ export async function POST(request: NextRequest) {
 
   if (extraNames.length > 0) {
     console.log(`[score] User-supplied names for detection: ${extraNames.join(", ")}`);
+  }
+
+  // Check score cache (skip if force_refresh)
+  const cacheKey = computeScoreCacheKey(url, queryCount);
+  if (!force_refresh) {
+    const cached = await getCachedScore(cacheKey);
+    if (cached) {
+      console.log(`[score] Cache HIT for ${url} (queryCount=${queryCount})`);
+      const { profileSnapshot: _snap, ...scoreResult } = cached;
+      return NextResponse.json(scoreResult, { headers: { "X-Cache": "HIT" } });
+    }
   }
 
   // 1.3 Step 1 — identify common customer intents for this business type
@@ -651,10 +667,11 @@ export async function POST(request: NextRequest) {
 
       for (const { llm, settled } of results) {
         if (settled.status === "fulfilled") {
-          const { response, latencyMs } = settled.value;
+          const { response, latencyMs, modelVersion } = settled.value;
           allDebugEntries.push({
             query,
             llm,
+            modelVersion,
             response,
             mentioned: mentionsBusiness(response, profile, url, extraNames),
             latencyMs,
@@ -719,6 +736,17 @@ export async function POST(request: NextRequest) {
     console.log(`  ${s.llm}: ${s.score}/100 (${s.mentions}/${s.totalQueries} mentions)`)
   );
   console.log("===================================\n");
+
+  // Persist score + feed research tables synchronously before responding
+  // (adds ~500ms for the batch mention-extraction call, which is acceptable)
+  try {
+    const scoreCacheId = await setCachedScore(url, cacheKey, queryCount, scoreResult, profile);
+    const queryIdMap = await insertQueryResults(profile, queriesToRun, allDebugEntries, scoreCacheId);
+    await extractAndStoreMentions(allDebugEntries, queryIdMap);
+  } catch (err) {
+    // Non-fatal — log but don't fail the response
+    console.warn("[score] DB persistence failed:", err);
+  }
 
   return NextResponse.json(scoreResult);
 }
