@@ -8,6 +8,12 @@ import type {
   LLMProvider,
   ScoreResult,
 } from "@/lib/types";
+import {
+  computeScoreCacheKey,
+  getCachedScore,
+  setCachedScore,
+} from "@/lib/db/cache";
+import { insertQueryResults, extractAndStoreMentions } from "@/lib/db/research";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Perplexity is OpenAI-SDK-compatible — just point at a different baseURL
@@ -570,7 +576,13 @@ function mentionsBusiness(
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { url, profile, queryCount = 12, businessNames } = body as { url: string; profile: BusinessProfile; queryCount?: number; businessNames?: string };
+  const { url, profile, queryCount = 12, businessNames, force_refresh } = body as {
+    url: string;
+    profile: BusinessProfile;
+    queryCount?: number;
+    businessNames?: string;
+    force_refresh?: boolean;
+  };
 
   // Parse comma-separated user-supplied names into an array
   const extraNames = businessNames
@@ -586,6 +598,17 @@ export async function POST(request: NextRequest) {
 
   if (extraNames.length > 0) {
     console.log(`[score] User-supplied names for detection: ${extraNames.join(", ")}`);
+  }
+
+  // Check score cache (skip if force_refresh)
+  const cacheKey = computeScoreCacheKey(url, queryCount);
+  if (!force_refresh) {
+    const cached = await getCachedScore(cacheKey);
+    if (cached) {
+      console.log(`[score] Cache HIT for ${url} (queryCount=${queryCount})`);
+      const { profileSnapshot: _snap, ...scoreResult } = cached;
+      return NextResponse.json(scoreResult, { headers: { "X-Cache": "HIT" } });
+    }
   }
 
   // 1.3 Step 1 — identify common customer intents for this business type
@@ -719,6 +742,17 @@ export async function POST(request: NextRequest) {
     console.log(`  ${s.llm}: ${s.score}/100 (${s.mentions}/${s.totalQueries} mentions)`)
   );
   console.log("===================================\n");
+
+  // Persist score + feed research tables synchronously before responding
+  // (adds ~500ms for the batch mention-extraction call, which is acceptable)
+  try {
+    const scoreCacheId = await setCachedScore(url, cacheKey, queryCount, scoreResult, profile);
+    const queryIdMap = await insertQueryResults(profile, queriesToRun, allDebugEntries, scoreCacheId);
+    await extractAndStoreMentions(allDebugEntries, queryIdMap);
+  } catch (err) {
+    // Non-fatal — log but don't fail the response
+    console.warn("[score] DB persistence failed:", err);
+  }
 
   return NextResponse.json(scoreResult);
 }

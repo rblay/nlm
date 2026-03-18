@@ -55,6 +55,19 @@
 - **About page**: hero "AI is recommending businesses. Is yours one of them?", Why GEO section (~130 words), three dark stacked panels (Measure/Recommend/Implement), CTA → `/`
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
 
+### Database layer (feature/db-caching-research)
+- **Supabase PostgreSQL** — 6 tables, 2 groups:
+  - *Caching*: `analyze_cache` (24h TTL), `score_cache` (7d TTL)
+  - *Research*: `research_businesses`, `research_signals`, `research_queries`, `research_mentions`
+- **`/api/analyze`** — checks `analyze_cache` on entry; writes cache + research_businesses + research_signals on miss (fire-and-forget)
+- **`/api/score`** — checks `score_cache` on entry; on miss: runs pipeline, then persists cache + research_queries + research_mentions synchronously before returning
+- **`X-Cache: HIT`** header returned on cache hits; `force_refresh=true` body param bypasses both caches
+- **`GET /api/admin/stats`** — returns `totalQueries`, `totalBusinesses`, `topMentioned`, `signalCorrelations`
+- **`POST /api/research/seed`** — seed a business by URL or `BusinessProfile`; runs `/api/analyze` internally
+- **`scripts/seed-research.mjs`** — CLI: `--urls`, `--csv`, `--file`; `--score` flag runs full pipeline
+- **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql`
+- DB is **optional** — if `SUPABASE_URL`/`SUPABASE_ANON_KEY` missing, all DB calls silently no-op (graceful degradation)
+
 ## What's still pending (priority order)
 - **1.6** — Graceful error handling (URL unreachable, LLM timeouts, partial results)
 - **5.1** — Make loading steps sequential in user-facing flow
@@ -66,6 +79,8 @@ OPENAI_API_KEY=...
 PERPLEXITY_API_KEY=...      # perplexity.ai/settings/api
 GEMINI_API_KEY=...          # Google AI Studio key (AIzaSy...), NOT a Cloud Console key
 GOOGLE_PLACES_API_KEY=...   # Places API (New) — optional, falls back gracefully
+SUPABASE_URL=...            # Project URL from Supabase dashboard → Settings → API
+SUPABASE_ANON_KEY=...       # anon/public key from same page
 ```
 
 ## Running locally

@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch feature/business-name-input)
+## Current State (as of March 2026, branch feature/db-caching-research)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -25,6 +25,13 @@
 - Flip card CSS rewritten: per-face rotateY transitions; compatible with overflow:hidden containers; no preserve-3d needed
 - Footer: subtle Demo/Dev links pointing to `/?demo` and `/?dev`
 - Pricing page: three-tier structure (Discover $49/mo, Optimize $99/mo, Grow $199/mo) with Goal boxes, feature lists, and CTAs; Optimize highlighted as "Most popular"
+- **Database layer (Supabase PostgreSQL)**: 6-table schema — `analyze_cache` (24h TTL), `score_cache` (7d TTL), `research_businesses`, `research_signals`, `research_queries`, `research_mentions`
+- **Caching**: `/api/analyze` and `/api/score` both check cache first; return `X-Cache: HIT` header on hit; `?force_refresh=true` bypasses cache
+- **Research dataset pipeline**: every live run auto-populates `research_businesses`, `research_signals`, `research_queries`, and `research_mentions` (business names extracted via GPT-4o-mini batch call)
+- **New routes**: `GET /api/admin/stats` (top mentioned businesses + signal correlations), `POST /api/research/seed` (seed a business by URL or profile)
+- **Bulk seeding CLI**: `node scripts/seed-research.mjs --urls https://... [--score]`
+- **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql`
+- DB is optional — if `SUPABASE_URL`/`SUPABASE_ANON_KEY` not set, all DB ops silently no-op
 
 ---
 
@@ -239,6 +246,6 @@ Goal: give business owners ready-to-use content and instructions based on their 
 - **LLM providers**: OpenAI (gpt-4o-mini), Perplexity (sonar), Google (gemini-2.5-flash) — all real and working for demo. Anthropic/Claude removed: its multi-turn web_search tool loop was ~4× slower than the other two providers.
 - **Score definition**: "mentions / total queries" — simple and explainable for the class.
 - **Streaming vs. polling**: Full pipeline will be slow. Server-Sent Events are the cleanest UX solution; polling a job ID is simpler to implement.
-- **Caching**: Cache results per domain so repeated demo submissions are instant and don't burn API credits.
+- **Caching**: ✅ Done — Supabase-backed with TTL (24h analyze, 7d score). Returns `X-Cache: HIT` on cache hit.
 - **Naming**: Canonical name is now **NLM** (UI rebranded in PR #19). README still says LLMRank — update before submission.
 - **Backend architecture**: Keeping everything in Next.js API routes for the demo. Main risk is the ~30–60s pipeline hitting Vercel's default timeout — mitigate with SSE or separate small API calls.

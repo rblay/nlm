@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import type { BusinessProfile, ObservableSignals } from "@/lib/types";
+import {
+  computeAnalyseCacheKey,
+  getCachedProfile,
+  setCachedProfile,
+} from "@/lib/db/cache";
+import { upsertBusiness, insertSignals } from "@/lib/db/research";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -191,10 +197,21 @@ async function lookupGooglePlace(name: string, location: string): Promise<Places
 }
 
 export async function POST(request: NextRequest) {
-  const { url } = await request.json();
+  const body = await request.json();
+  const { url, force_refresh } = body as { url: string; force_refresh?: boolean };
 
   if (!url) {
     return NextResponse.json({ error: "URL is required" }, { status: 400 });
+  }
+
+  // Check cache (skip if ?force_refresh=true)
+  const cacheKey = computeAnalyseCacheKey(url);
+  if (!force_refresh) {
+    const cached = await getCachedProfile(cacheKey);
+    if (cached) {
+      console.log(`[analyze] Cache HIT for ${url}`);
+      return NextResponse.json({ profile: cached }, { headers: { "X-Cache": "HIT" } });
+    }
   }
 
   // Fetch homepage + secondary pages in parallel
@@ -296,6 +313,14 @@ Return a JSON object with exactly these fields:
   console.log("\n========== BUSINESS PROFILE ==========");
   console.log(JSON.stringify(profile, null, 2));
   console.log("=======================================\n");
+
+  // Persist to cache + research dataset (fire and forget — don't block the response)
+  Promise.all([
+    setCachedProfile(url, cacheKey, profile),
+    upsertBusiness(url, profile, "pipeline").then((businessId) => {
+      if (businessId) return insertSignals(businessId, profile, "pipeline");
+    }),
+  ]).catch((err) => console.warn("[analyze] Background DB write failed:", err));
 
   return NextResponse.json({ profile });
 }
