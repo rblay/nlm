@@ -134,6 +134,7 @@ export async function insertQueryResults(
         location: profile.location,
         intent_bucket: queryIdx >= 0 ? bucketForIndex(queryIdx) : null,
         llm: entry.llm,
+        model_version: entry.modelVersion ?? null,
         response_text: entry.response,
         latency_ms: entry.latencyMs,
         source_score_id: scoreCacheId ?? null,
@@ -199,9 +200,39 @@ Example: { "0": ["Equinox", "Barry's Bootcamp"], "1": [], "2": ["F45 Training"] 
       completion.choices[0].message.content ?? "{}"
     );
 
+    // Collect all unique mentioned names so we can look them up in research_businesses
+    const allNames = new Set<string>();
+    for (const names of Object.values(parsed)) {
+      for (const name of names) {
+        if (name?.trim()) allNames.add(name.trim());
+      }
+    }
+
+    // Single query to find any already-known businesses matching these names (case-insensitive)
+    const nameToBusinessId = new Map<string, string>();
+    if (allNames.size > 0) {
+      const { data: knownBusinesses } = await db
+        .from("research_businesses")
+        .select("id, name")
+        .limit(2000);
+
+      if (knownBusinesses) {
+        for (const biz of knownBusinesses) {
+          const bizLower = biz.name.toLowerCase();
+          for (const name of allNames) {
+            if (name.toLowerCase() === bizLower) {
+              nameToBusinessId.set(name.trim(), biz.id);
+              break;
+            }
+          }
+        }
+      }
+    }
+
     const mentionRows: {
       query_id: string;
       business_name: string;
+      business_id: string | null;
       match_confidence: string;
       extracted_by: string;
     }[] = [];
@@ -214,10 +245,13 @@ Example: { "0": ["Equinox", "Barry's Bootcamp"], "1": [], "2": ["F45 Training"] 
       const names: string[] = parsed[String(i)] ?? [];
       for (const name of names) {
         if (name && name.trim()) {
+          const trimmed = name.trim();
+          const businessId = nameToBusinessId.get(trimmed) ?? null;
           mentionRows.push({
             query_id: queryId,
-            business_name: name.trim(),
-            match_confidence: "fuzzy",
+            business_name: trimmed,
+            business_id: businessId,
+            match_confidence: businessId ? "exact" : "unmatched",
             extracted_by: "llm",
           });
         }

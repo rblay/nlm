@@ -59,14 +59,18 @@
 - **Supabase PostgreSQL** — 6 tables, 2 groups:
   - *Caching*: `analyze_cache` (24h TTL), `score_cache` (7d TTL)
   - *Research*: `research_businesses`, `research_signals`, `research_queries`, `research_mentions`
-- **`/api/analyze`** — checks `analyze_cache` on entry; writes cache + research_businesses + research_signals on miss (fire-and-forget)
+- **`/api/analyze`** — checks `analyze_cache` on entry; writes cache + research_businesses + research_signals on miss (fire-and-forget); location falls back to Places API `addressComponents` when HTML extraction returns empty
 - **`/api/score`** — checks `score_cache` on entry; on miss: runs pipeline, then persists cache + research_queries + research_mentions synchronously before returning
 - **`X-Cache: HIT`** header returned on cache hits; `force_refresh=true` body param bypasses both caches
+- **Model version**: `DebugEntry.modelVersion` (optional field in shared types); stored in `research_queries.model_version`
+- **Mention linking**: `extractAndStoreMentions` fetches all known businesses and does case-insensitive name match at insert time; sets `business_id` + `match_confidence` (`exact` | `unmatched`)
+- **Supabase setup gotcha**: tables created via SQL editor don't auto-get grants — must run `GRANT ALL ON ALL TABLES/SEQUENCES IN SCHEMA public TO service_role` + `ALTER DEFAULT PRIVILEGES` after schema creation
+- **Client**: uses `SUPABASE_SERVICE_ROLE_KEY` (not anon key) — bypasses RLS for server-side use
 - **`GET /api/admin/stats`** — returns `totalQueries`, `totalBusinesses`, `topMentioned`, `signalCorrelations`
 - **`POST /api/research/seed`** — seed a business by URL or `BusinessProfile`; runs `/api/analyze` internally
 - **`scripts/seed-research.mjs`** — CLI: `--urls`, `--csv`, `--file`; `--score` flag runs full pipeline
-- **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql`
-- DB is **optional** — if `SUPABASE_URL`/`SUPABASE_ANON_KEY` missing, all DB calls silently no-op (graceful degradation)
+- **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql` (fully documented)
+- DB is **optional** — if `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` missing, all DB calls silently no-op
 
 ## What's still pending (priority order)
 - **1.6** — Graceful error handling (URL unreachable, LLM timeouts, partial results)
@@ -79,8 +83,8 @@ OPENAI_API_KEY=...
 PERPLEXITY_API_KEY=...      # perplexity.ai/settings/api
 GEMINI_API_KEY=...          # Google AI Studio key (AIzaSy...), NOT a Cloud Console key
 GOOGLE_PLACES_API_KEY=...   # Places API (New) — optional, falls back gracefully
-SUPABASE_URL=...            # Project URL from Supabase dashboard → Settings → API
-SUPABASE_ANON_KEY=...       # anon/public key from same page
+SUPABASE_URL=...                 # Project URL from Supabase dashboard → Settings → API
+SUPABASE_SERVICE_ROLE_KEY=...   # service_role (secret) key — NOT the anon key
 ```
 
 ## Running locally

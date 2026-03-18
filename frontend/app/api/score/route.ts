@@ -329,51 +329,44 @@ ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
 
 async function queryOpenAI(
   query: string
-): Promise<{ response: string; latencyMs: number }> {
+): Promise<{ response: string; latencyMs: number; modelVersion: string }> {
   const start = Date.now();
-  // Use Responses API with web_search tool so results match real ChatGPT behaviour
+  const model = "gpt-4o-mini";
   const res = await openai.responses.create({
-    model: "gpt-4o-mini",
+    model,
     tools: [{ type: "web_search" }],
     input: query,
   });
-  return {
-    response: res.output_text ?? "",
-    latencyMs: Date.now() - start,
-  };
+  return { response: res.output_text ?? "", latencyMs: Date.now() - start, modelVersion: model };
 }
 
 async function queryPerplexity(
   query: string
-): Promise<{ response: string; latencyMs: number }> {
+): Promise<{ response: string; latencyMs: number; modelVersion: string }> {
   const start = Date.now();
-  // sonar is Perplexity's fast search model — web search is native, single-pass, no tool loop
+  const model = "sonar";
   const completion = await perplexity.chat.completions.create({
-    model: "sonar",
+    model,
     messages: [{ role: "user", content: query }],
   });
   return {
     response: completion.choices[0]?.message?.content ?? "",
     latencyMs: Date.now() - start,
+    modelVersion: model,
   };
 }
 
 async function queryGemini(
   query: string
-): Promise<{ response: string; latencyMs: number }> {
+): Promise<{ response: string; latencyMs: number; modelVersion: string }> {
   const start = Date.now();
-  // gemini-2.5-flash — current generation, available on free-tier AI Studio keys
+  const model = "gemini-2.5-flash";
   const result = await genai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model,
     contents: query,
-    config: {
-      tools: [{ googleSearch: {} }],
-    },
+    config: { tools: [{ googleSearch: {} }] },
   });
-  return {
-    response: result.text ?? "",
-    latencyMs: Date.now() - start,
-  };
+  return { response: result.text ?? "", latencyMs: Date.now() - start, modelVersion: model };
 }
 
 // ─── 1.5 Bucket-level hit analysis + plain-English summary ───────────────────
@@ -674,10 +667,11 @@ export async function POST(request: NextRequest) {
 
       for (const { llm, settled } of results) {
         if (settled.status === "fulfilled") {
-          const { response, latencyMs } = settled.value;
+          const { response, latencyMs, modelVersion } = settled.value;
           allDebugEntries.push({
             query,
             llm,
+            modelVersion,
             response,
             mentioned: mentionsBusiness(response, profile, url, extraNames),
             latencyMs,

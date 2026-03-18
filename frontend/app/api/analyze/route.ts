@@ -148,6 +148,7 @@ interface PlacesResult {
   gbpPhotoCount: number | null;
   reviewCount: number | null;
   reviewRating: number | null;
+  location: string | null;  // derived from addressComponents when HTML extraction misses it
 }
 
 const PLACES_FALLBACK: PlacesResult = {
@@ -156,7 +157,26 @@ const PLACES_FALLBACK: PlacesResult = {
   gbpPhotoCount: null,
   reviewCount: null,
   reviewRating: null,
+  location: null,
 };
+
+interface AddressComponent {
+  longText: string;
+  types: string[];
+}
+
+function locationFromComponents(components: AddressComponent[]): string | null {
+  const get = (...types: string[]) =>
+    components.find((c) => types.some((t) => c.types.includes(t)))?.longText ?? null;
+
+  const neighbourhood = get("sublocality_level_1", "sublocality", "neighborhood");
+  const city = get("locality", "postal_town", "administrative_area_level_2");
+
+  if (neighbourhood && city) return `${neighbourhood}, ${city}`;
+  if (city) return city;
+  if (neighbourhood) return neighbourhood;
+  return null;
+}
 
 async function lookupGooglePlace(name: string, location: string): Promise<PlacesResult> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
@@ -169,7 +189,7 @@ async function lookupGooglePlace(name: string, location: string): Promise<Places
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.regularOpeningHours,places.photos",
+        "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.regularOpeningHours,places.photos,places.addressComponents",
       },
       body: JSON.stringify({ textQuery: query, pageSize: 1 }),
     });
@@ -183,12 +203,17 @@ async function lookupGooglePlace(name: string, location: string): Promise<Places
     const place = data.places?.[0];
     if (!place) return PLACES_FALLBACK;
 
+    const derivedLocation = Array.isArray(place.addressComponents)
+      ? locationFromComponents(place.addressComponents)
+      : null;
+
     return {
       hasGoogleBusinessProfile: true,
       gbpHasHours: !!place.regularOpeningHours,
       gbpPhotoCount: Array.isArray(place.photos) ? place.photos.length : null,
       reviewCount: place.userRatingCount ?? null,
       reviewRating: place.rating ?? null,
+      location: derivedLocation,
     };
   } catch (err) {
     console.warn("[analyze] Places API lookup failed:", err);
@@ -301,10 +326,14 @@ Return a JSON object with exactly these fields:
     reviewRating: placesData.reviewRating,
   };
 
+  // Use Places-derived location as fallback when HTML extraction returns empty
+  const resolvedLocation =
+    (extracted.location ?? "").trim() || placesData.location || "";
+
   const profile: BusinessProfile = {
     name: extracted.name ?? "",
     type: extracted.type ?? "",
-    location: extracted.location ?? "",
+    location: resolvedLocation,
     description: extracted.description ?? "",
     services: extracted.services ?? [],
     signals: enrichedSignals,

@@ -26,12 +26,15 @@
 - Footer: subtle Demo/Dev links pointing to `/?demo` and `/?dev`
 - Pricing page: three-tier structure (Discover $49/mo, Optimize $99/mo, Grow $199/mo) with Goal boxes, feature lists, and CTAs; Optimize highlighted as "Most popular"
 - **Database layer (Supabase PostgreSQL)**: 6-table schema — `analyze_cache` (24h TTL), `score_cache` (7d TTL), `research_businesses`, `research_signals`, `research_queries`, `research_mentions`
-- **Caching**: `/api/analyze` and `/api/score` both check cache first; return `X-Cache: HIT` header on hit; `?force_refresh=true` bypasses cache
+- **Caching**: `/api/analyze` and `/api/score` both check cache first; return `X-Cache: HIT` header on hit; `force_refresh=true` body param bypasses cache
 - **Research dataset pipeline**: every live run auto-populates `research_businesses`, `research_signals`, `research_queries`, and `research_mentions` (business names extracted via GPT-4o-mini batch call)
+- **Location fallback**: if GPT-4o-mini can't extract location from HTML, Places API `addressComponents` fills it in (`neighbourhood, city` format)
+- **Model version tracking**: `DebugEntry.modelVersion` added to shared types; stored in `research_queries.model_version` (e.g. `gpt-4o-mini`, `sonar`, `gemini-2.5-flash`)
+- **Mention → business linking**: mentioned names matched case-insensitively against `research_businesses` at insert time; `match_confidence` set to `exact` or `unmatched`
+- **Supabase client**: uses `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS); DB is optional — if env vars missing all DB ops silently no-op
 - **New routes**: `GET /api/admin/stats` (top mentioned businesses + signal correlations), `POST /api/research/seed` (seed a business by URL or profile)
 - **Bulk seeding CLI**: `node scripts/seed-research.mjs --urls https://... [--score]`
-- **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql`
-- DB is optional — if `SUPABASE_URL`/`SUPABASE_ANON_KEY` not set, all DB ops silently no-op
+- **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql` (fully documented — every table and column has inline comments)
 
 ---
 
