@@ -182,3 +182,4 @@ CREATE TABLE IF NOT EXISTS research_mentions (
 CREATE INDEX IF NOT EXISTS research_mentions_query_idx ON research_mentions (query_id);
 CREATE INDEX IF NOT EXISTS research_mentions_business_idx ON research_mentions (business_id);
 CREATE INDEX IF NOT EXISTS research_mentions_name_idx ON research_mentions (business_name);
+

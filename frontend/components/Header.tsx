@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 const navLinks = [
   { href: "/", label: "LLM Score" },
@@ -10,8 +11,10 @@ const navLinks = [
   { href: "/careers", label: "Careers" },
 ];
 
-export default function Header() {
+function HeaderInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isAdmin = searchParams.has("admin") || pathname === "/admin";
 
   return (
     <header className="w-full border-b border-[#1e2d4a]/10 bg-[#ece8e1]">
@@ -33,8 +36,32 @@ export default function Header() {
               {label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={`text-sm font-medium transition-colors px-3 py-1 rounded-lg ${
+                pathname === "/admin"
+                  ? "bg-[#1e2d4a] text-white"
+                  : "bg-[#1e2d4a]/10 text-[#1e2d4a] hover:bg-[#1e2d4a]/20"
+              }`}
+            >
+              Admin
+            </Link>
+          )}
         </nav>
       </div>
     </header>
+  );
+}
+
+export default function Header() {
+  return (
+    <Suspense fallback={
+      <header className="w-full border-b border-[#1e2d4a]/10 bg-[#ece8e1]">
+        <div className="max-w-6xl mx-auto px-6 py-4 h-[57px]" />
+      </header>
+    }>
+      <HeaderInner />
+    </Suspense>
   );
 }
