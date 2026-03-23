@@ -148,7 +148,8 @@ interface PlacesResult {
   gbpPhotoCount: number | null;
   reviewCount: number | null;
   reviewRating: number | null;
-  location: string | null;  // derived from addressComponents when HTML extraction misses it
+  location: string | null;   // "Neighbourhood, City" — from addressComponents
+  country: string | null;    // e.g. "UK", "US", "France" — appended to location anchor
 }
 
 const PLACES_FALLBACK: PlacesResult = {
@@ -158,11 +159,23 @@ const PLACES_FALLBACK: PlacesResult = {
   reviewCount: null,
   reviewRating: null,
   location: null,
+  country: null,
 };
 
 interface AddressComponent {
   longText: string;
   types: string[];
+}
+
+// Normalize verbose country names from Places API to short, query-friendly forms.
+const COUNTRY_SHORT_NAMES: Record<string, string> = {
+  "united kingdom": "UK",
+  "united states": "US",
+  "united states of america": "US",
+};
+
+function normalizeCountry(longText: string): string {
+  return COUNTRY_SHORT_NAMES[longText.toLowerCase().trim()] ?? longText;
 }
 
 function locationFromComponents(components: AddressComponent[]): string | null {
@@ -207,6 +220,11 @@ async function lookupGooglePlace(name: string, location: string): Promise<Places
       ? locationFromComponents(place.addressComponents)
       : null;
 
+    const countryComponent = Array.isArray(place.addressComponents)
+      ? place.addressComponents.find((c: AddressComponent) => c.types.includes("country"))
+      : null;
+    const derivedCountry = countryComponent ? normalizeCountry(countryComponent.longText) : null;
+
     return {
       hasGoogleBusinessProfile: true,
       gbpHasHours: !!place.regularOpeningHours,
@@ -214,6 +232,7 @@ async function lookupGooglePlace(name: string, location: string): Promise<Places
       reviewCount: place.userRatingCount ?? null,
       reviewRating: place.rating ?? null,
       location: derivedLocation,
+      country: derivedCountry,
     };
   } catch (err) {
     console.warn("[analyze] Places API lookup failed:", err);
@@ -243,17 +262,25 @@ export async function POST(request: NextRequest) {
   let html: string;
   let blogHtml: string | null = null;
   let faqHtml: string | null = null;
+  let locationHtml: string | null = null;
   try {
     const baseOrigin = new URL(url).origin;
-    const [homepageRes, rawBlog, rawNews, rawFaq] = await Promise.all([
+    const [homepageRes, rawBlog, rawNews, rawFaq,
+      rawContact, rawAbout, rawOurStory, rawFindUs] = await Promise.all([
       fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; LLMRankBot/1.0)" } }),
       fetchSecondary(`${baseOrigin}/blog`),
       fetchSecondary(`${baseOrigin}/news`),
       fetchSecondary(`${baseOrigin}/faq`),
+      fetchSecondary(`${baseOrigin}/contact`),
+      fetchSecondary(`${baseOrigin}/about`),
+      fetchSecondary(`${baseOrigin}/our-story`),
+      fetchSecondary(`${baseOrigin}/find-us`),
     ]);
     html = await homepageRes.text();
     blogHtml = rawBlog ?? rawNews ?? null;
     faqHtml = rawFaq;
+    // Use the first location-bearing page we find
+    locationHtml = rawContact ?? rawAbout ?? rawOurStory ?? rawFindUs ?? null;
   } catch (err) {
     console.error(`[analyze] Failed to fetch ${url}:`, err);
     return NextResponse.json({ error: "Failed to fetch URL" }, { status: 422 });
@@ -276,14 +303,18 @@ export async function POST(request: NextRequest) {
     if (questions.length > 0) signals.faqQuestions = questions;
   }
 
-  // Strip tags and collapse whitespace, cap at 3000 chars for the LLM
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 3000);
+  // Strip tags and collapse whitespace for the LLM
+  const stripHtml = (raw: string) =>
+    raw
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const text = stripHtml(html).slice(0, 3000);
+  // Include a snippet from the location page (contact/about/our-story) so GPT can find the address
+  const locationText = locationHtml ? stripHtml(locationHtml).slice(0, 1000) : null;
 
   // Extract structured business info via GPT-4o-mini
   let extracted: { name: string; type: string; location: string; description: string; services: string[] };
@@ -298,16 +329,16 @@ export async function POST(request: NextRequest) {
 Return a JSON object with exactly these fields:
 - name: the business name (string)
 - type: the business type in 1-2 words, e.g. "gym", "restaurant", "boutique" (string)
-- location: city and/or neighbourhood if detectable, otherwise empty string (string)
+- location: ALWAYS return in "Neighbourhood, City" format when both are detectable (e.g. "Clifton, Bristol", "South Kensington, London", "Mission District, San Francisco"). If you can only find one level, return what you have (e.g. just "Bristol" or just "Clifton"). Look in the address, footer, contact page, street name, postcode area, or any geographic reference. Never return a country or region. Return empty string only if truly nothing is detectable (string)
 - description: a factual 2-3 sentence summary of what the business does, who it serves, and what makes it distinctive (string)
 - services: an array of 3-6 key services or offerings (string[])`,
         },
         {
           role: "user",
-          content: `URL: ${url}\n\nWebpage content:\n${text}`,
+          content: `URL: ${url}\n\nHomepage content:\n${text}${locationText ? `\n\nContact/About page content (use this to find the address):\n${locationText}` : ""}`,
         },
       ],
-      max_tokens: 400,
+      max_tokens: 500,
     });
     extracted = JSON.parse(completion.choices[0].message.content ?? "{}");
   } catch (err) {
@@ -326,9 +357,58 @@ Return a JSON object with exactly these fields:
     reviewRating: placesData.reviewRating,
   };
 
-  // Use Places-derived location as fallback when HTML extraction returns empty
-  const resolvedLocation =
-    (extracted.location ?? "").trim() || placesData.location || "";
+  // Build the best possible "Neighbourhood, City" string.
+  //
+  // Places API is authoritative — it returns Google's verified business address.
+  // GPT is useful for extracting the neighbourhood when Places only returns the city.
+  //
+  // Priority:
+  //   1. Places has "Neighbourhood, City" (comma present) → use directly, most reliable
+  //   2. GPT found a neighbourhood + Places confirmed a city → combine them
+  //   3. GPT has "Neighbourhood, City" from page text → use GPT
+  //   4. Places has city only → use it (verified, even if not neighbourhood-level)
+  //   5. Places unavailable → fall back to whatever GPT found
+  const gptLocation = (extracted.location ?? "").trim();
+  const placesLocation = placesData.location ?? "";
+
+  // Parse Places result into its components
+  const placesHasComma = placesLocation.includes(",");
+  const placesCity = placesHasComma
+    ? placesLocation.split(",").slice(-1)[0].trim()
+    : placesLocation;
+  const gptNeighbourhood = gptLocation.includes(",")
+    ? gptLocation.split(",")[0].trim()
+    : gptLocation;
+
+  console.log(`[analyze] Location sources — GPT: "${gptLocation}" | Places: "${placesLocation}"`);
+
+  let resolvedLocation: string;
+  if (placesHasComma) {
+    // Places returned a full "Neighbourhood, City" — most authoritative
+    resolvedLocation = placesLocation;
+  } else if (gptNeighbourhood && placesCity && gptNeighbourhood.toLowerCase() !== placesCity.toLowerCase()) {
+    // GPT found the neighbourhood, Places confirmed the city — combine them
+    resolvedLocation = `${gptNeighbourhood}, ${placesCity}`;
+  } else if (gptLocation.includes(",")) {
+    // GPT managed to extract full "Neighbourhood, City" from page text
+    resolvedLocation = gptLocation;
+  } else if (placesCity) {
+    // Places has city only — verified, use it
+    resolvedLocation = placesCity;
+  } else {
+    // Places offline or failed — fall back to GPT
+    resolvedLocation = gptLocation;
+  }
+
+  // Append country from Places API to make the location globally unambiguous.
+  // e.g. "Clifton, Bristol" → "Clifton, Bristol, UK"
+  // This eliminates LLM confusion between e.g. Clifton Bristol vs Clifton NJ.
+  const country = placesData.country;
+  if (country && resolvedLocation && !resolvedLocation.toLowerCase().includes(country.toLowerCase())) {
+    resolvedLocation = `${resolvedLocation}, ${country}`;
+  }
+
+  console.log(`[analyze] Resolved location: "${resolvedLocation}" (country from Places: "${country ?? "none"}")`);
 
   const profile: BusinessProfile = {
     name: extracted.name ?? "",

@@ -1084,6 +1084,9 @@ export default function Home() {
   const [actionsLoading, setActionsLoading] = useState(false);
   const [testingMode, setTestingMode] = useState<TestingMode>("all");
   const [queryCount, setQueryCount] = useState(12);
+  const [forceRefresh, setForceRefresh] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev")
+  );
 
   // UI state
   const [showLeadModal, setShowLeadModal] = useState(false);
@@ -1246,7 +1249,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, businessNames: businessNames.trim() || undefined }),
+        body: JSON.stringify({ url, businessNames: businessNames.trim() || undefined, force_refresh: forceRefresh || undefined }),
       });
       const contentType = res.headers.get("content-type") ?? "";
       if (!contentType.includes("application/json"))
@@ -1310,7 +1313,7 @@ export default function Home() {
         const res = await fetch("/api/score", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, profile: fetchedProfile, queryCount, businessNames: businessNames.trim() || undefined }),
+          body: JSON.stringify({ url, profile: fetchedProfile, queryCount, businessNames: businessNames.trim() || undefined, force_refresh: forceRefresh || undefined }),
         });
         const contentType = res.headers.get("content-type") ?? "";
         if (!contentType.includes("application/json"))
@@ -1478,6 +1481,15 @@ export default function Home() {
                         />
                       </div>
                     )}
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={forceRefresh}
+                        onChange={(e) => setForceRefresh(e.target.checked)}
+                        className="rounded border-[#1e2d4a]/20 text-[#1e2d4a] focus:ring-[#1e2d4a]/20"
+                      />
+                      <span className="text-xs text-[#9aa3af] whitespace-nowrap">Force refresh cache</span>
+                    </label>
                   </div>
                 )}
               </form>
@@ -1870,6 +1882,14 @@ export default function Home() {
 
                   {debugOpen && (
                     <div className="overflow-x-auto bg-white">
+                      {/* Profile snapshot */}
+                      {profile && (
+                        <div className="px-6 py-3 border-b border-[#1e2d4a]/[0.06] bg-[#1e2d4a]/[0.02] flex flex-wrap gap-x-6 gap-y-1">
+                          <span className="text-xs text-[#9aa3af]"><span className="font-semibold text-[#6b7a8d]">Name:</span> {profile.name}</span>
+                          <span className="text-xs text-[#9aa3af]"><span className="font-semibold text-[#6b7a8d]">Type:</span> {profile.type}</span>
+                          <span className="text-xs text-[#9aa3af]"><span className="font-semibold text-[#6b7a8d]">Location:</span> {profile.location || <em>empty</em>}</span>
+                        </div>
+                      )}
                       <div className="px-6 py-4 border-b border-[#1e2d4a]/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-widest text-[#9aa3af] mb-2">Common Customer Intents</p>
