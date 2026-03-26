@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch feature/db-caching-research)
+## Current State (as of March 2026, branch feature/onboarding-newsletter)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -35,6 +35,10 @@
 - **New routes**: `GET /api/admin/stats` (top mentioned businesses + signal correlations), `POST /api/research/seed` (seed a business by URL or profile)
 - **Bulk seeding CLI**: `node scripts/seed-research.mjs --urls https://... [--score]`
 - **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql` (fully documented — every table and column has inline comments)
+- **Client newsletter generator**: `POST /api/newsletter` — takes `profile`, `scoreResult`, `actions`, `url`; returns formatted plain-text email copy; splits actions into NLM-implemented vs client-action items; no extra LLM calls needed
+- **Admin page**: `/admin` — internal tool for generating client newsletters; left panel lists all businesses cached in Supabase (click to load instantly); right panel shows score summary + newsletter textarea with copy button; unlisted from public nav
+- **Admin client list API**: `GET /api/admin/clients` — returns all non-expired `score_cache` rows with full data needed to generate newsletter without re-running pipeline
+- **Admin access**: visit `/?admin` to reveal an Admin link in the nav header (same pattern as `?dev` and `?demo`); stays visible while on `/admin`
 
 ---
 

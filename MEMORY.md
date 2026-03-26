@@ -55,6 +55,14 @@
 - **About page**: hero "AI is recommending businesses. Is yours one of them?", Why GEO section (~130 words), three dark stacked panels (Measure/Recommend/Implement), CTA → `/`
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
 
+### Client newsletter generator (feature/onboarding-newsletter)
+- **`POST /api/newsletter`** — accepts `{ profile, scoreResult, actions, url }`; returns formatted plain-text email; no extra LLM calls
+- **Action ownership split**: `NLM_ACTION_IDS` set in newsletter route classifies which actions NLM implements (`schema-json-ld`, `meta-description`, `title-tag`, `blog-post-intro`, `faq-draft`) vs which are client-action items (reviews, GBP post, maps embed, social bio); newsletter renders two separate sections accordingly
+- **Progress tracking**: signal history and score history already available from `research_signals` (versioned, one row per analyze run) and `research_queries` (timestamped) — no separate snapshot table needed
+- **`/admin` page**: internal newsletter generator; left panel = known clients from `score_cache` (click = instant load, no re-run); right panel = score summary strip + newsletter textarea + copy button
+- **`GET /api/admin/clients`**: lists all non-expired `score_cache` rows
+- **Admin access gate**: `?admin` URL param reveals Admin link in header (same pattern as `?dev`/`?demo`); link stays visible on `/admin` page itself
+
 ### Database layer (feature/db-caching-research)
 - **Supabase PostgreSQL** — 6 tables, 2 groups:
   - *Caching*: `analyze_cache` (24h TTL), `score_cache` (7d TTL)
