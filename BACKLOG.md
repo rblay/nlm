@@ -9,7 +9,7 @@
 - Query geo scope is capped at district/borough/neighbourhood level; city-wide phrasing disallowed
 - All 3 LLM providers (OpenAI, Perplexity, Gemini) now run fully in parallel — no batching or sleep delays
 - Anthropic/Claude replaced with Perplexity sonar — single-pass native web search, ~4× faster than Claude's multi-turn tool loop
-- Detection: fuzzy alias matching — strips business-type suffixes, checks domain stem and multi-token brand combos; individual distinctive tokens (>4 chars) added so partial mentions (e.g. "Quinta") are caught; expanded NAME_STOP_WORDS prevents generic category words (coffee, sauna/s, rooftop, etc.) from becoming false-positive aliases; user-supplied business names (comma-separated) accepted on the score page and fed into the same alias-matching pipeline alongside the scraped profile name
+- Detection: strict alias matching via `buildStrictNameAliases()` — matches exact full name + suffix-stripped shorter brand name only; no individual word token splitting (removed to prevent false positives where generic words like "properties" or "kitchen" match unrelated content); user-supplied business names (comma-separated, required field) are the sole source for name matching when provided — scraped profile name is only used as a fallback when no user names are given; URL domain stem match retained as a secondary signal
 - `detectCategory()` normalises Unicode accents so "café" matches "cafe"
 - Multi-location support: `extractLocationParts()` uses "/" as co-equal venue separator; `enforceDistrictLevelQueries()` uses block assignment for even query distribution; `generateQueries` prompt includes explicit per-venue split instruction
 - `/api/recommend` is live — gap-based recommendations grounded in signals, ordered by impact (High/Medium/Low); improvements removed from this endpoint
@@ -35,6 +35,10 @@
 - **New routes**: `GET /api/admin/stats` (top mentioned businesses + signal correlations), `POST /api/research/seed` (seed a business by URL or profile)
 - **Bulk seeding CLI**: `node scripts/seed-research.mjs --urls https://... [--score]`
 - **DB files**: `frontend/lib/db/client.ts`, `cache.ts`, `research.ts`, `schema.sql` (fully documented — every table and column has inline comments)
+- **Client newsletter generator**: `POST /api/newsletter` — takes `profile`, `scoreResult`, `actions`, `url`; returns formatted plain-text email copy; splits actions into NLM-implemented vs client-action items; no extra LLM calls needed
+- **Admin page**: `/admin` — internal tool for generating client newsletters; left panel lists all businesses cached in Supabase (click to load instantly); right panel shows score summary + newsletter textarea with copy button; unlisted from public nav
+- **Admin client list API**: `GET /api/admin/clients` — returns all non-expired `score_cache` rows with full data needed to generate newsletter without re-running pipeline
+- **Admin access**: visit `/?admin` to reveal an Admin link in the nav header (same pattern as `?dev` and `?demo`); stays visible while on `/admin`
 
 ---
 

@@ -32,7 +32,7 @@
 - **Geo scope guard**: Query prompt enforces district/borough/neighbourhood-level locations only; post-generation sanitizer rewrites city-wide phrasing
 - **queryCount**: All 12 intents/queries generated; only top N sent to LLMs (frontend default 12, configurable 1–12)
 - **Scoring**: `mentions / total_queries × 100` per LLM; overall = average across 3 LLMs
-- **Detection**: Fuzzy alias matching via `buildNameAliases()` — strips business-type suffixes, checks domain stem; individual distinctive tokens (>4 chars) added alongside bigrams so partial name mentions (e.g. "Quinta" for "Quinta Pupusas") are caught; expanded `NAME_STOP_WORDS` prevents generic category words (coffee, roaster, roasters, roastery, bakery, sauna, saunas, wellness, rooftop) from becoming false-positive aliases; `detectCategory()` normalises Unicode accents via `.normalize("NFD")` so "café" matches "cafe"; `mentionsBusiness()` now accepts `extraNames: string[]` — user-supplied comma-separated names from the score form are parsed and run through the same `buildNameAliases()` pipeline
+- **Detection**: Strict alias matching via `buildStrictNameAliases()` — matches exact full name (lowercased) + suffix-stripped shorter brand name only; deliberately no individual word token splitting to prevent false positives (e.g. "properties" from "Chapter One Properties" matching any real estate content); `mentionsBusiness()` uses ONLY user-supplied `extraNames` for name matching when provided — scraped `profile.name` is the fallback only when no user names given; URL domain stem check retained as a secondary signal; `NAME_STOP_WORDS` and `detectCategory()` Unicode normalisation unchanged; business name field on the form is now **required** — Analyze button disabled and `handleSubmit` returns early if blank
 - **Location parsing**: `extractLocationParts()` uses "/" as co-equal venue separator and "," as hierarchy; returns `{ districts: string[], city: string | null }`; `COUNTRY_REGION_TERMS` Set filters country/region strings (uk, england, usa, etc.) from location parts; `enforceDistrictLevelQueries()` uses block assignment so multi-location businesses get 50/50 query distribution across venues; sibling district correction rewrites wrong-venue queries to the assigned target district
 - **Prompt quality**: `generateIntents` no longer hardcodes "London" (says "local businesses"); `generateQueries` uses dynamic `areaExample` from real parsed location; multi-location businesses get an explicit per-venue split instruction (`locationRule`) injected into the query prompt
 - **Parallelism**: All 3 scoring providers run fully in parallel (no batching). Perplexity replaced Anthropic — sonar's native single-pass search removes the multi-turn tool loop that caused ~4× slower responses and required rate-limit batching
@@ -43,7 +43,7 @@
 ### UI (feature/multi-page-nav, PR #21)
 - **Theme**: light — `#ece8e1` cream bg, `#1e2d4a` deep navy text/accent, white cards, Playfair Display serif headings
 - **Hero**: "Can people find you on LLMs?" / tagline "Translating your business value into AI visibility"
-- **Pre-submit**: URL input + business name(s) input (comma-separated, feeds detection) + Analyze button; Measure/Recommend/Implement steps shown below; all hidden after submission
+- **Pre-submit**: URL input + business name(s) input (comma-separated, **required** — Analyze button disabled until filled, `handleSubmit` guards it too) + Analyze button; Measure/Recommend/Implement steps shown below; all hidden after submission
 - **Your Business**: always shows name/type/location + truncated description (expand inline); toggle reveals services + signals (4/5 shown initially with expand)
 - **AI Visibility Score**: two-column (scores left, summary right) + full-width CTA row below: "Hire the NLM Marketing Agent" navy button → lead capture modal
 - **Recommended Improvements**: combined recs + actions; flipable carousel with ‹/› arrows + nav dots; 88%/12% peek; card back has accordion for FAQ/blog (per-item expand + copy), code block for schema, + "Hire the NLM Marketing Agent" CTA pinned at bottom
@@ -57,6 +57,14 @@
 - **Pricing page** (`/pricing`): three tiers — Discover $49/mo, Optimize $99/mo (highlighted, "Most popular"), Grow $199/mo; each card has tier name, price, Goal box, description, feature list, CTA; footer note "All plans start with a free scan — no card required"; data defined as a `tiers` const array at top of file
 - **About page**: hero "AI is recommending businesses. Is yours one of them?", Why GEO section (~130 words), three dark stacked panels (Measure/Recommend/Implement), CTA → `/`
 - **Dev tools**: testing mode + debug panel hidden by default; visible at `?dev` URL param
+
+### Client newsletter generator (feature/onboarding-newsletter)
+- **`POST /api/newsletter`** — accepts `{ profile, scoreResult, actions, url }`; returns formatted plain-text email; no extra LLM calls
+- **Action ownership split**: `NLM_ACTION_IDS` set in newsletter route classifies which actions NLM implements (`schema-json-ld`, `meta-description`, `title-tag`, `blog-post-intro`, `faq-draft`) vs which are client-action items (reviews, GBP post, maps embed, social bio); newsletter renders two separate sections accordingly
+- **Progress tracking**: signal history and score history already available from `research_signals` (versioned, one row per analyze run) and `research_queries` (timestamped) — no separate snapshot table needed
+- **`/admin` page**: internal newsletter generator; left panel = known clients from `score_cache` (click = instant load, no re-run); right panel = score summary strip + newsletter textarea + copy button
+- **`GET /api/admin/clients`**: lists all non-expired `score_cache` rows
+- **Admin access gate**: `?admin` URL param reveals Admin link in header (same pattern as `?dev`/`?demo`); link stays visible on `/admin` page itself
 
 ### Database layer (feature/db-caching-research)
 - **Supabase PostgreSQL** — 6 tables, 2 groups:

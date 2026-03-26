@@ -1171,6 +1171,7 @@ export default function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
+    if (!businessNames.trim()) return;
 
     if (testingMode === "fake") {
       setSubmitted(true);
@@ -1444,17 +1445,21 @@ export default function Home() {
                       type="text"
                       value={businessNames}
                       onChange={(e) => setBusinessNames(e.target.value)}
-                      placeholder="Business name(s) — e.g. Revival, Revival Gym"
-                      className="flex-1 px-4 py-3 rounded-xl border border-[#1e2d4a]/15 bg-white text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/30 text-sm shadow-sm"
+                      placeholder="Business name — e.g. Revival PT Studio"
+                      required
+                      className={`flex-1 px-4 py-3 rounded-xl border bg-white text-[#1e2d4a] placeholder-[#9aa3af] focus:outline-none focus:ring-2 focus:ring-[#1e2d4a]/30 text-sm shadow-sm ${
+                        !businessNames.trim() ? "border-[#1e2d4a]/30" : "border-[#1e2d4a]/15"
+                      }`}
                     />
                     <button
                       type="submit"
-                      className="px-6 py-3 bg-[#1e2d4a] text-white rounded-xl font-semibold text-sm hover:bg-[#2c3e70] transition-colors whitespace-nowrap shadow-sm"
+                      disabled={!url.trim() || !businessNames.trim()}
+                      className="px-6 py-3 bg-[#1e2d4a] text-white rounded-xl font-semibold text-sm hover:bg-[#2c3e70] transition-colors whitespace-nowrap shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Analyze →
                     </button>
                   </div>
-                  <p className="text-xs text-[#9aa3af] px-1">How customers refer to your business — helps AI models identify you accurately. Separate multiple names with a comma.</p>
+                  <p className="text-xs text-[#9aa3af] px-1">How customers refer to your business — helps AI models identify you accurately. e.g. Revival Personal Training, Revival, Revival Gym</p>
                 </div>
                 {devMode && (
                   <div className="flex items-center gap-3 px-1 flex-wrap">

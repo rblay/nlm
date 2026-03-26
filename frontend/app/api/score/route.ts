@@ -639,7 +639,19 @@ const NAME_SUFFIXES = [
   " restaurant", " cafe", " bar", " ltd", " llc",
 ];
 
-function buildNameAliases(name: string): string[] {
+/**
+ * Build strict name aliases for a given business name.
+ *
+ * Only produces:
+ *   1. The exact full name (lowercased)
+ *   2. A suffix-stripped shorter brand name if applicable (e.g. "Revival PT Studio" → "Revival")
+ *
+ * Deliberately does NOT split into individual word tokens — that causes false positives
+ * where common words like "kitchen" or "properties" match unrelated content.
+ * If the user wants a shorter alias (e.g. "Chapter One" from "Chapter One Properties")
+ * they should add it as a second comma-separated entry in the business names field.
+ */
+function buildStrictNameAliases(name: string): string[] {
   const base = name.toLowerCase().trim();
   const aliases: string[] = [base];
 
@@ -655,10 +667,6 @@ function buildNameAliases(name: string): string[] {
       break;
     }
   }
-
-  // No individual token or token-pair matching — generic words like "bread",
-  // "bagel", "revival" would produce false positives on unrelated businesses.
-  // Domain stem matching in mentionsBusiness() handles the URL case.
 
   return [...new Set(aliases)];
 }
@@ -680,14 +688,13 @@ function mentionsBusiness(
     // ignore malformed URL
   }
 
-  // Profile name: use alias expansion (full name + suffix-stripped multi-word version)
-  const profileAliases = buildNameAliases(profile.name);
-
-  // User-supplied names: match exactly as entered — the user knows what they typed.
-  // "Revival" → must find "revival"; "Modern Bread and Bagel" → must find that exact phrase.
-  const userAliases = extraNames.map((n) => n.toLowerCase().trim()).filter(Boolean);
-
-  const aliases = [...profileAliases, ...userAliases];
+  // 2. Name matching — use ONLY the user-supplied names when provided.
+  //    Strict matching: full name + suffix-stripped alias only — no individual word tokens.
+  //    This prevents false positives from generic words (e.g. "properties", "kitchen")
+  //    appearing in unrelated parts of an LLM response.
+  //    If no user-supplied names are given, fall back to the scraped profile name.
+  const namesToMatch = extraNames.length > 0 ? extraNames : [profile.name];
+  const aliases = namesToMatch.flatMap((n) => buildStrictNameAliases(n));
   return aliases.some((alias) => text.includes(alias));
 }
 
