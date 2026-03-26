@@ -25,7 +25,10 @@
 | Improvement generation (query-aligned) | OpenAI gpt-4o-mini |
 
 ### Key implementation details
-- **Query generation**: Two-step — 12 intents across 9 GEO buckets; Step 2 turns each into a location-aware discovery query (no business name, area-anchored, goal-first for problem intents)
+- **Query generation**: Two-step — 12 intents across 9 GEO buckets; Step 2 turns each into a location-aware discovery query using [LOCATION] placeholder (LLM writes placeholder, code injects real anchor — deterministic, not LLM-decided)
+- **Intent bucket variety**: Discovery (bucket 1) and Comparison (bucket 7) always use broad category terms (e.g. "restaurant", not "Italian restaurant"); niche only in buckets 3, 4, 9
+- **Relevance gate**: `filterRelevantQueries()` strips any generated query matching recipe/cooking/etiquette patterns post-generation
+- **Admin export**: `GET /api/admin/export?table=queries|businesses|mentions` — downloads CSV from Supabase research tables
 - **Geo scope guard**: Query prompt enforces district/borough/neighbourhood-level locations only; post-generation sanitizer rewrites city-wide phrasing
 - **queryCount**: All 12 intents/queries generated; only top N sent to LLMs (frontend default 12, configurable 1–12)
 - **Scoring**: `mentions / total_queries × 100` per LLM; overall = average across 3 LLMs
@@ -82,6 +85,7 @@
 - DB is **optional** — if `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` missing, all DB calls silently no-op
 
 ## What's still pending (priority order)
+- **8.1** — Dynamic country in location anchor (e.g. "Clifton, Bristol, UK") — Places API `addressComponents` has the country; must be dynamic not hardcoded (product is global)
 - **1.6** — Graceful error handling (URL unreachable, LLM timeouts, partial results)
 - **5.1** — Make loading steps sequential in user-facing flow
 - **README** — Technical overview for graders

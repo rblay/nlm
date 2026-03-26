@@ -1,8 +1,8 @@
-# LLMRank — Claude Context
+# NLM — Claude Context
 
 ## What this project is
 
-LLMRank (project folder: `nlm`) is an MBA AI Ventures demo. It helps SMEs (gyms, restaurants, boutique stores) understand and improve how AI assistants describe their business.
+NLM (project folder: `nlm`) is an MBA AI Ventures demo. It helps SMEs (gyms, restaurants, boutique stores) understand and improve how AI assistants describe their business.
 
 Three-step product:
 1. **Score** — scrape the business URL, generate customer-style queries, query multiple LLMs, return a presence score (mentions / total queries)

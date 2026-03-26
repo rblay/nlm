@@ -1,6 +1,6 @@
 # NLM / LLMRank — Project Backlog
 
-## Current State (as of March 2026, branch feature/onboarding-newsletter)
+## Current State (as of March 2026, branch fix/location-in-prompts)
 
 - `/api/analyze` returns a full `BusinessProfile` (name, type, location, description, services, signals)
 - Observable signals detected from HTML: Schema markup, blog, FAQ, social links, Maps embed, meta description, title tag
@@ -18,7 +18,7 @@
 - Frontend: light NLM-branded UI (Playfair Display, #1e2d4a navy, #ece8e1 cream bg); collapsible "Your Business" card; two-column AI Visibility Score; "Recommended Improvements" flipable carousel combining recommendations + actions with accordion for FAQ/blog; "Boost what's working" flip carousel (shown when recommendations ≤ 3) with query-grounded improvement cards; lead capture modal; Measure/Recommend/Implement section only shown pre-submission; debug panel; business name(s) input field on the score form (below URL, above Analyze button)
 - Multi-page structure: shared Header + Footer with nav; About page content complete; Pricing page fully built; Careers placeholder
 - Step-by-step progress modal: all step labels visible from the start; pending steps shown in muted text, active/done in full colour; business-type-aware fun step labels (no tool names)
-- Testing mode dropdown (All / Score Only / Rec Only / Fake Data) and query count input gated behind `?dev` URL param
+- Testing mode dropdown (All / Score Only / Rec Only / Fake Data), query count input, and force refresh checkbox gated behind `?dev` URL param; force refresh defaults to ON in `?dev` mode (pending)
 - `?demo` mode: full fake Quinta Pupusas (South Kensington) data; 7-second sequential animated loading; blog first, FAQ second in carousel; 5 blog posts with Day N: schedule labels
 - `?dev` mode: shows testing/debug controls; debug panel visible
 - FAQ carousel card: parsed from `### Question\nAnswer` (LLM) or `Q1:/A1:` (demo) format; "Copy FAQ as Markdown" button at top
@@ -245,6 +245,112 @@ Goal: give business owners ready-to-use content and instructions based on their 
 **README overhaul (pre-submission) ✅**
 - Full technical README written for graders: product overview, system architecture, tech stack table, local setup, API route reference, key design decisions, developer mode, project structure, known limitations, and pages table
 - Audience: technical graders who will read the code — the README is their entry point
+
+---
+
+### Step 8: Query Quality Improvements (from Training Set Audit — March 2026)
+
+*Based on analysis of 500 query-response pairs across 5 businesses. See `NLM queries- training set.pdf` in the NLM Database folder.*
+
+---
+
+#### P0 — Critical (do immediately)
+
+**8.1 — Add country/region to location anchor**
+- Current output: `"Clifton, Bristol"` → Target: `"Clifton, Bristol, UK"`
+- Data proves it: `"Clifton, Bristol"` → 0% wrong-location responses; `"Clifton"` alone → 75% wrong (Clifton NJ / Cape Town / Virginia)
+- Fix: append country code dynamically from Places API `addressComponents` — must NOT be hardcoded to "UK" as the product is global
+- Status: **pending** (deferred from fix/location-in-prompts)
+
+**8.2 — Location validation gate**
+- After resolving location, check it resolves to exactly 1 place (e.g. via Google Geocoding API)
+- If ambiguous (e.g. "Springfield" matches 30+ cities), force-add state/country before sending queries
+- Prevents the 16 "please specify which Clifton" dead responses (3% of all queries wasted)
+- Status: **pending**
+
+---
+
+#### P1 — High priority
+
+**8.3 — USP integration in query generation**
+- Currently: queries are grounded in `services[]` array from business profile
+- Gap: queries don't probe the business's actual differentiators (e.g. "Josper grill", "fishmonger counter", "gluten-free sourdough")
+- Fix: extract 2–3 USPs/menu highlights from the business profile (GPT step); pass them explicitly into `generateQuerySeeds()` prompt so at least 3 queries reference a specific differentiator
+- Status: **descoped** — user decision: over-indexing on USPs risks skewing results toward the business rather than testing genuine discoverability
+
+**8.4 — Relevance gate (off-topic query filter)**
+- 27 of 500 queries (5%) were about cooking recipes, dining etiquette, or generic info — these can never surface the business in LLM results
+- Fix: `filterRelevantQueries()` regex filter added as post-generation step — strips queries matching recipe/cooking/etiquette/nutrition patterns
+- Status: ✅ **done** (fix/location-in-prompts)
+
+**8.5 — Query niche specificity balance**
+- Gap: queries were over-indexing on the business niche (e.g. "Italian" in every query for an Italian restaurant)
+- Fix: `generateIntents()` prompt updated — Discovery (bucket 1) and Comparison (bucket 7) now explicitly use broad category terms; niche allowed only in buckets 3, 4, and 9 where it genuinely fits the filter intent
+- Status: ✅ **done** (fix/location-in-prompts)
+
+---
+
+#### P2 — Medium priority
+
+**8.6 — Rebalance intent bucket distribution**
+- Goal-based searches currently 33% of all queries — many are tangential (cooking tips, gift vouchers)
+- Fix: cap Goal-based at ~15% of the 12 queries (max 2 slots); increase Comparison, Discovery, and Quality & Trust which are under-represented
+- Implement as explicit slot counts in `generateIntents()`: e.g. `Discovery: 2, Comparison: 1, Quality/Trust: 1, Experience/Vibe: 1, Fit/Persona: 1, Constraints: 1, Price/Value: 1, Life Moment: 1, Goal-based: 2`
+- Status: **pending**
+
+**8.7 — Intent bucket classification accuracy**
+- 18 of 500 queries (4%) in wrong bucket: "affordable seafood" tagged Constraints (should be Price & Value); "delivery" tagged Price & Value (should be Logistics)
+- Fix: add the refined bucket definitions from the audit into the `generateIntents()` system prompt as classification rules
+- Key rules: Price & Value = mentions price/cost/budget/deals; Constraints = hard limits (hours, dietary, accessibility); Logistics = booking/reservations/ordering/directions
+- Status: **pending**
+
+**8.8 — Cosine similarity deduplication**
+- ~30 of 500 rows were near-duplicate queries ("seafood restaurants in Clifton" appeared 9×)
+- Fix: after generating 12 query seeds, embed them and reject any pair with cosine similarity >0.85; regenerate rejected ones
+- Can use OpenAI `text-embedding-3-small` (cheap) or a simple n-gram overlap check as a lightweight alternative
+- Status: **pending**
+
+---
+
+#### P3 — Lower priority (post-demo)
+
+**8.9 — Persona-based query variants**
+- Current queries are generic — no perspective
+- Add at least 1 persona-anchored query per run: tourist, local regular, business dinner planner, dietary-restricted customer
+- Example: "I'm visiting Bristol for the weekend — where's the best seafood restaurant in Clifton?"
+- Status: **pending**
+
+**8.10 — Answerability check (no real-time data queries)**
+- Some queries ask about live data LLMs can't answer: "any specials on fresh catch of the day", "how much do Smash Burgers cost?"
+- Fix: filter out queries that ask about daily menus, live prices, or current availability; rephrase to ask about reputation/features instead (e.g. "which seafood restaurants in Clifton, Bristol feature a daily catch menu?")
+- Status: **pending**
+
+**8.11 — Competitor-aware queries (Comparison bucket)**
+- Including the target business name in comparison queries dramatically boosts mention rate
+- Example: "How does Spiny Lobster compare to other seafood restaurants in Clifton, Bristol?"
+- Use cautiously — generates useful benchmark data but is slightly biassed
+- Status: **pending**
+
+---
+
+#### Pre-flight checklist (to add as automated post-generation validation)
+
+Once P1/P2 items above are built, wrap them into a single validation pass run after `generateQuerySeeds()`:
+
+| # | Check | Action if failed |
+|---|-------|-----------------|
+| 1 | Full location (neighbourhood + city + country) | Append city + country from profile |
+| 2 | Business type/niche keyword present | Insert from `detectCategory()` result |
+| 3 | Answerable by LLM (no real-time data) | Rephrase to feature/reputation question |
+| 4 | Natural conversational language (no keyword stuffing) | Rephrase with articles and prepositions |
+| 5 | Relevant to visiting/choosing/booking the business | Reject and regenerate |
+| 6 | Not a near-duplicate (cosine sim < 0.85) | Remove or rephrase for different angle |
+| 7 | Intent bucket matches query intent | Reassign per refined definitions |
+| 8 | No unresolvable references ("this restaurant") | Replace with actual business name |
+| 9 | Not asking about info the business wouldn't be known for | Replace with service-grounded query |
+| 10 | Buckets roughly balanced across the batch | Regenerate for under-represented buckets |
+
+Status: **pending** — implement after 8.3–8.8 are done
 
 ---
 

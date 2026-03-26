@@ -16,217 +16,319 @@ import {
 import { insertQueryResults, extractAndStoreMentions } from "@/lib/db/research";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-// Perplexity is OpenAI-SDK-compatible — just point at a different baseURL
 const perplexity = new OpenAI({
   apiKey: process.env.PERPLEXITY_API_KEY ?? "",
   baseURL: "https://api.perplexity.ai",
 });
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
-// ─── 1.3 Category detection + problem dictionaries (from GEO spec) ───────────
+// ─── Business category detection ─────────────────────────────────────────────
 
-type BusinessCategory = "fitness" | "restaurant" | "beauty" | "other";
+type BusinessCategory = "fitness" | "restaurant" | "beauty" | "retail" | "professional" | "other";
 
 function detectCategory(businessType: string): BusinessCategory {
-  // Normalise accents first so "café" matches "cafe", etc.
   const t = businessType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/gym|fitness|studio|yoga|pilates|crossfit|boxing|hiit|spin|personal.train|pt\b/.test(t))
     return "fitness";
-  if (/restaurant|cafe|bistro|bar|pub|food|dining|kitchen|eatery|takeaway/.test(t))
+  if (/restaurant|cafe|bistro|bar|pub|food|dining|kitchen|eatery|takeaway|seafood|pupusa|bakery|baker|bagel|patisserie|deli|sandwich|brunch|coffee.shop|juice.bar|pizz|sushi|ramen|burger|taco|burrito|noodle|dumpling|gelato|ice.cream|dessert|chocolate|confection/.test(t))
     return "restaurant";
   if (/spa|beauty|salon|clinic|aesthetic|massage|nail|brow|lash|facial/.test(t))
     return "beauty";
+  if (/shop|store|boutique|retail|fashion|clothing|jewel|florist/.test(t))
+    return "retail";
+  if (/estate.agent|property|financial|advisor|accountant|solicitor|lawyer|mortgage|insurance/.test(t))
+    return "professional";
   return "other";
 }
 
-// Curated high-intent problem/goal queries per category (GEO spec §6)
+// ─── Intent suggestion dictionaries ──────────────────────────────────────────
+//
+// Two dictionaries per category:
+//   PROBLEM_DICTS    — specific goals or needs this type of business solves
+//   LIFE_MOMENT_DICTS — life circumstances that trigger a search for this business
+//
+// Both are passed to the LLM as inspiration only — it must ground the actual
+// intents in the specific business's description and services.
+
 const PROBLEM_DICTS: Record<BusinessCategory, string[]> = {
   fitness: [
-    "beginner weight loss",
-    "strength training for beginners",
-    "post-injury friendly training",
-    "getting fit for a marathon",
-    "low-impact workouts",
-    "stress relief and mental health",
-    "women-only classes",
-    "short workouts near work",
-    "training with a personal trainer",
-    "back-friendly workouts",
+    "losing weight and getting fitter",
+    "building strength from scratch",
+    "recovering fitness after injury",
+    "training for a specific sport or event",
+    "low-impact workouts for joint problems",
+    "improving mental health through exercise",
+    "getting a personal trainer",
+    "women-only or specialist classes",
   ],
   restaurant: [
-    "vegan-friendly dinner",
-    "gluten-free options",
-    "quick pre-theatre meal",
-    "romantic date night",
-    "family-friendly dinner",
-    "group booking for 8–12",
-    "quiet place to have a conversation",
-    "great brunch spot",
-    "late-night food",
-    "best value lunch",
+    "finding gluten-free or allergy-friendly food",
+    "eating vegan or plant-based",
+    "a quick meal or snack before an event",
+    "a quiet spot for a proper conversation",
+    "the best local brunch or breakfast",
+    "late-night dining options",
+    "group bookings for a celebration",
+    "best value lunch in the area",
+    "freshly baked bread or pastries nearby",
+    "nut-free or allergen-safe baked goods",
+    "artisan or sourdough bread",
+    "specialty coffee and a place to sit",
+    "a healthy breakfast or morning routine spot",
   ],
   beauty: [
-    "stress relief massage",
-    "back and neck tension relief",
-    "glow-up facial",
-    "facial for sensitive skin",
-    "couples spa day",
-    "pre-wedding beauty prep",
-    "long-lasting nail treatment",
-    "relaxation with sauna or steam",
+    "relieving stress and muscle tension",
+    "improving skin for a big event",
+    "long-lasting nail or lash treatments",
+    "a full-body relaxation experience",
+    "treating a specific skin condition",
+    "a couples treatment or gift experience",
+  ],
+  retail: [
+    "finding a unique or one-off gift",
+    "sustainable or ethical shopping",
+    "specialist items not found on the high street",
+    "shopping locally instead of online",
+    "finding the perfect outfit for an occasion",
+  ],
+  professional: [
+    "getting expert advice for the first time",
+    "understanding complex options clearly",
+    "finding someone trustworthy and local",
+    "navigating a major financial or legal decision",
+    "support during a stressful life transition",
   ],
   other: [
-    "best value option",
-    "highly rated local service",
-    "good for beginners",
-    "flexible booking",
+    "finding the best local option",
+    "getting started as a beginner",
+    "finding a trustworthy provider",
+    "solving a specific problem",
   ],
 };
 
-const CITY_WIDE_TERMS = [
-  "london",
-  "greater london",
-  "central london",
-  "east london",
-  "west london",
-  "north london",
-  "south london",
-] as const;
+const LIFE_MOMENT_DICTS: Record<BusinessCategory, string[]> = {
+  fitness: [
+    "getting in shape before a wedding",
+    "returning to fitness after having a baby",
+    "starting over after a long break from exercise",
+    "training for a marathon or triathlon",
+    "getting fit before a holiday",
+    "rebuilding fitness after an illness",
+    "a mid-life commitment to health",
+  ],
+  restaurant: [
+    "celebrating a birthday or anniversary",
+    "a first date or romantic evening",
+    "a business lunch or client dinner",
+    "a graduation or promotion celebration",
+    "a farewell dinner for someone leaving",
+    "a family gathering or special occasion",
+    "pre-theatre or pre-event dinner",
+    "a lazy weekend brunch with friends",
+    "picking up something special for a party or gathering",
+    "a treat after a long week",
+  ],
+  beauty: [
+    "preparing for a wedding day",
+    "a hen party or group pamper day",
+    "a birthday treat for yourself or a friend",
+    "recovering after a particularly stressful period",
+    "a mother's day or anniversary gift",
+    "post-holiday skin recovery",
+  ],
+  retail: [
+    "shopping for a wedding or special event outfit",
+    "finding a meaningful gift for someone important",
+    "treating yourself after a milestone",
+    "refreshing a wardrobe for a new chapter",
+  ],
+  professional: [
+    "buying a first home",
+    "starting a new business",
+    "planning for retirement",
+    "going through a divorce or separation",
+    "inheriting money or assets unexpectedly",
+    "relocating to a new city",
+  ],
+  other: [
+    "marking a major life change",
+    "treating someone special",
+    "starting something new",
+    "a milestone worth celebrating",
+  ],
+};
 
-const COUNTRY_REGION_TERMS = new Set([
-  "uk", "united kingdom", "england", "scotland", "wales",
-  "usa", "united states", "us", "america",
-  "canada", "australia",
+// ─── Location anchor ──────────────────────────────────────────────────────────
+//
+// Resolves profile.location into clean, usable anchor strings.
+// "/"  → co-equal venues (e.g. "Brixton / Hackney, London")
+// ","  → hierarchy within one venue (e.g. "Clifton, Bristol")
+//
+// Output:
+//   anchors  — one full "district, city" string per venue
+//   primary  — the first anchor (used in single-venue logic)
+
+interface LocationAnchor {
+  anchors: string[];
+  primary: string | null;
+}
+
+// These London terms are too broad to serve as a meaningful neighbourhood anchor.
+const BROAD_DISTRICT_TERMS = new Set([
+  "london", "greater london", "central london",
+  "east london", "west london", "north london", "south london",
 ]);
 
-/**
- * Parse a location string into co-equal venue districts and an optional city.
- *
- * Separator semantics:
- *   "/"  → co-equal venues at the same level  (e.g. "Brixton / Hackney")
- *   ","  → hierarchy within a single venue    (e.g. "Stokes Croft, Bristol")
- *
- * Examples:
- *   "Brixton / Hackney, London"       → districts: ["Brixton","Hackney"], city: null
- *   "Stokes Croft, Bristol"           → districts: ["Stokes Croft"],      city: "Bristol"
- *   "Farringdon, London, EC1A 1BB"    → districts: ["Farringdon"],        city: null
- *   "Mission District, San Francisco, CA" → districts: ["Mission District"], city: "San Francisco"
- */
-function extractLocationParts(location: string): { districts: string[]; city: string | null } {
-  function isMeaningful(p: string): boolean {
-    const norm = p.toLowerCase().replace(/\s+/g, " ").trim();
-    if (CITY_WIDE_TERMS.includes(norm as (typeof CITY_WIDE_TERMS)[number])) return false;
-    if (COUNTRY_REGION_TERMS.has(norm)) return false;
-    if (/\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/i.test(norm)) return false; // UK postcodes
-    if (/^\d{5}(-\d{4})?$/.test(norm)) return false; // US ZIP codes
-    if (/^[a-z]{2}$/i.test(norm)) return false; // 2-letter state/country codes
-    return true;
+// Country names recognised in location strings — extracted as a 3rd component.
+// These are intentionally NOT stripped: they make queries globally unambiguous.
+// e.g. "Clifton, Bristol, UK" → anchor "Clifton, Bristol, UK" (no Clifton NJ confusion)
+const COUNTRY_RE = /^(UK|US|France|Germany|Australia|Canada|Spain|Italy|Ireland|Netherlands|Belgium|Portugal|Switzerland|Sweden|Norway|Denmark|Finland|New Zealand|South Africa|India|Japan|Singapore|Brazil|Mexico|UAE|Greece|Austria|Poland|Hungary|Thailand|Hong Kong)$/i;
+
+function resolveLocationAnchor(location: string): LocationAnchor {
+  if (!location.trim()) return { anchors: [], primary: null };
+
+  // Strip only non-human-readable noise: postcodes and ISO alpha-2 codes (GB, FR, DE…).
+  // Human-readable country names (UK, US, France…) are handled by COUNTRY_RE above.
+  const isNoise = (p: string): boolean => {
+    const n = p.trim();
+    if (/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i.test(n)) return true;  // UK postcodes: BS8 1AA
+    if (/^\d{5}(-\d{4})?$/.test(n)) return true;                           // US ZIP codes: 10001
+    if (/^[A-Z]{2,3}$/.test(n) && !COUNTRY_RE.test(n)) return true;        // ISO codes (GB, FR) not UK/US
+    return false;
+  };
+
+  const isBroadDistrict = (p: string) =>
+    BROAD_DISTRICT_TERMS.has(p.toLowerCase().replace(/\s+/g, " ").trim());
+
+  const fragments = location.split("/").map(f => f.trim()).filter(Boolean);
+
+  const parsed = fragments.map(fragment => {
+    const parts = fragment.split(",").map(p => p.trim()).filter(p => p && !isNoise(p));
+    let district: string | null = null;
+    let city: string | null = null;
+    let country: string | null = null;
+
+    for (const part of parts) {
+      // Country is identified first — prevents it being misassigned as district or city
+      if (COUNTRY_RE.test(part)) {
+        country = part;
+        continue;
+      }
+      if (!district && !isBroadDistrict(part)) {
+        district = part; // Most specific: neighbourhood, small town, borough
+      } else if (!city) {
+        city = part;     // City context: Bristol, London, San Francisco
+      }
+    }
+    return { district, city, country };
+  });
+
+  // Share city and country across all venue fragments for multi-venue businesses.
+  // e.g. "Brixton / Hackney, London, UK" → both get "London" and "UK"
+  const sharedCity    = parsed.find(p => p.city)?.city       ?? null;
+  const sharedCountry = parsed.find(p => p.country)?.country ?? null;
+
+  const anchors = parsed
+    .map(({ district, city, country }) => {
+      const c  = city    ?? sharedCity;
+      const co = country ?? sharedCountry;
+      if (!district && !c) return null;
+      let anchor: string;
+      if (!district) anchor = c!;          // City-only fallback
+      else if (!c)   anchor = district;    // Small town with no parent city (e.g. "Yeovil")
+      else           anchor = `${district}, ${c}`;
+      if (co) anchor = `${anchor}, ${co}`; // Append country: "Clifton, Bristol, UK"
+      return anchor;
+    })
+    .filter((a): a is string => Boolean(a));
+
+  const unique = [...new Set(anchors)];
+  return { anchors: unique, primary: unique[0] ?? null };
+}
+
+// ─── Location injection ───────────────────────────────────────────────────────
+//
+// The LLM writes query seeds containing a [LOCATION] placeholder where the
+// location naturally belongs in the sentence. This function replaces that
+// placeholder with the real anchor string — we own location completely.
+//
+// For multi-venue businesses the queries are split into equal blocks,
+// each block assigned to one venue anchor.
+//
+// Safety net: if the LLM omitted [LOCATION] entirely, we append "in [anchor]".
+
+function injectLocations(seeds: string[], location: LocationAnchor): string[] {
+  if (location.anchors.length === 0) {
+    // No location available — strip any leftover placeholder and return
+    return seeds.map(s => s.replace(/\s*\[LOCATION\]/gi, "").replace(/\s{2,}/g, " ").trim());
   }
 
-  const fragments = location.split("/").map((f) => f.trim()).filter(Boolean);
-  const districts: string[] = [];
-  let city: string | null = null;
+  const { anchors } = location;
+  const queriesPerBlock = anchors.length > 1
+    ? Math.ceil(seeds.length / anchors.length)
+    : seeds.length;
 
-  if (fragments.length > 1) {
-    // Multi-venue: each "/" fragment is a co-equal location — take its most specific meaningful part
-    for (const fragment of fragments) {
-      const parts = fragment.split(",").map((p) => p.trim()).filter(isMeaningful);
-      if (parts[0]) districts.push(parts[0]);
-      if (!city && parts[1]) city = parts[1]; // city from second part of any fragment
-    }
-  } else {
-    // Single venue: comma-separated hierarchy (neighbourhood → city → country)
-    const parts = location.split(",").map((p) => p.trim()).filter(isMeaningful);
-    if (parts[0]) districts.push(parts[0]);
-    city = parts[1] ?? null;
-  }
+  return seeds.map((seed, i) => {
+    const blockIdx = Math.min(Math.floor(i / queriesPerBlock), anchors.length - 1);
+    const anchor = anchors[blockIdx];
 
-  return { districts, city };
-}
-
-// Convenience wrapper — returns the primary (first) district only
-function extractDistrictHint(location: string): string | null {
-  return extractLocationParts(location).districts[0] ?? null;
-}
-
-function isCityWideQuery(query: string): boolean {
-  return /\b(?:greater\s+)?london\b/i.test(query) || /\b(?:east|west|north|south|central)\s+london\b/i.test(query);
-}
-
-function enforceDistrictLevelQueries(
-  queries: string[],
-  districts: string[],
-  city: string | null = null
-): string[] {
-  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  // City-level regex (non-London city detected from the location string)
-  const cityRegex = city && city.length > 3
-    ? new RegExp(`\\b(in|around|across|near)\\s+${esc(city)}\\b`, "gi") : null;
-  const cityStandaloneRegex = city && city.length > 3
-    ? new RegExp(`\\b${esc(city)}\\b`, "gi") : null;
-
-  // For multi-location: block assignment — first half → districts[0], second half → districts[1], etc.
-  // queriesPerBlock rounds up so the last district may get fewer if total isn't divisible.
-  const queriesPerBlock = districts.length > 1
-    ? Math.ceil(queries.length / districts.length)
-    : queries.length;
-
-  return queries.map((query, i) => {
-    // Determine the district this query slot is assigned to
-    const blockIdx = Math.min(Math.floor(i / queriesPerBlock), districts.length - 1);
-    const targetDistrict = districts[blockIdx] ?? null;
-
-    let updated = query;
-
-    // 1. Replace London-wide terms with the target district
-    if (isCityWideQuery(query)) {
-      if (targetDistrict) {
-        updated = updated
-          .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, `$1 ${targetDistrict}`)
-          .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, `$1 ${targetDistrict}`)
-          .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, targetDistrict)
-          .replace(/\b(?:greater\s+)?london\b/gi, targetDistrict);
-      } else {
-        updated = updated
-          .replace(/\b(in|around|across|near)\s+(?:greater\s+)?london\b/gi, "")
-          .replace(/\b(in|around|across|near)\s+(?:east|west|north|south|central)\s+london\b/gi, "")
-          .replace(/\b(?:east|west|north|south|central)\s+london\b/gi, "")
-          .replace(/\b(?:greater\s+)?london\b/gi, "");
-      }
+    if (/\[LOCATION\]/i.test(seed)) {
+      // Happy path: substitute the placeholder the LLM placed naturally
+      return seed.replace(/\[LOCATION\]/gi, anchor).replace(/\s{2,}/g, " ").trim();
     }
 
-    // 2. Multi-location: replace any sibling district names with the target district.
-    //    This corrects queries where the LLM used the wrong venue for this slot.
-    if (districts.length > 1 && targetDistrict) {
-      for (const d of districts) {
-        if (d === targetDistrict) continue;
-        updated = updated
-          .replace(new RegExp(`\\b(in|around|across|near)\\s+${esc(d)}\\b`, "gi"), `$1 ${targetDistrict}`)
-          .replace(new RegExp(`\\b${esc(d)}\\b`, "gi"), targetDistrict);
-      }
-    }
-
-    // 3. Replace city-wide term with the target district (e.g. "in Bristol" → "in Stokes Croft")
-    if (cityRegex && cityStandaloneRegex) {
-      if (targetDistrict) {
-        updated = updated
-          .replace(cityRegex, `$1 ${targetDistrict}`)
-          .replace(cityStandaloneRegex, targetDistrict);
-      } else {
-        updated = updated.replace(cityRegex, "").replace(cityStandaloneRegex, "");
-      }
-    }
-
-    return updated.replace(/\s{2,}/g, " ").trim();
+    // Safety net: no placeholder — append location using a natural preposition
+    const punct = seed.match(/[?!.]$/)?.[0] ?? "";
+    const base = punct ? seed.slice(0, -1).trim() : seed.trim();
+    // Vary the preposition based on query structure for naturalness
+    const prep = /^where\b/i.test(base) ? "near" : /^how\b/i.test(base) ? "near" : "around";
+    return `${base} ${prep} ${anchor}${punct}`;
   });
 }
 
-// ─── 1.3 Step 1: Generate intents spanning the 9 GEO intent buckets ──────────
+// ─── Relevance gate ───────────────────────────────────────────────────────────
+//
+// Filters out query seeds that are off-topic — things a customer would search
+// when they want to cook, learn, or read, not when they want to visit a business.
+// Patterns are intentionally specific: "how to cook" is caught, "how to book" is not.
+
+const IRRELEVANT_PATTERNS = [
+  /\brecipes?\b/i,
+  /\bhow[\s-]?to\s+(cook|make|bake|brew|prepare|fry|grill)\b/i,
+  /\bcooking\s+tips?\b/i,
+  /\betiquette\b/i,
+  /\bculinary\s+tips?\b/i,
+  /\bwine\s+pairing\b/i,
+  /\bfor\s+home\s+cooking\b/i,
+  /\beat\s+at\s+home\b/i,
+  /\bchef\s+tips?\b/i,
+  /\bingredients?\s+for\b/i,
+  /\bhow\s+to\s+season\b/i,
+];
+
+function filterRelevantQueries(queries: string[]): string[] {
+  const kept: string[] = [];
+  for (const q of queries) {
+    if (IRRELEVANT_PATTERNS.some(p => p.test(q))) {
+      console.log(`[score] Relevance gate removed: "${q}"`);
+    } else {
+      kept.push(q);
+    }
+  }
+  return kept;
+}
+
+// ─── Step 1: Generate intents ─────────────────────────────────────────────────
+//
+// Produces 12 short intent phrases covering all 9 buckets.
+// Intents describe what the customer wants — no location, no business name.
+// The LLM uses PROBLEM_DICTS and LIFE_MOMENT_DICTS as inspiration but must
+// ground its choices in the actual business description and services.
 
 async function generateIntents(profile: BusinessProfile): Promise<string[]> {
   const category = detectCategory(profile.type);
-  const problems = PROBLEM_DICTS[category].slice(0, 6).join("; ");
+  const problemSuggestions = PROBLEM_DICTS[category].slice(0, 5).join("; ");
+  const momentSuggestions = LIFE_MOMENT_DICTS[category].slice(0, 4).join("; ");
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -236,54 +338,74 @@ async function generateIntents(profile: BusinessProfile): Promise<string[]> {
         role: "system",
         content: `You are an expert in consumer search behaviour for local businesses.
 
-Generate exactly 12 customer intents for the business described below. Cover all 9 intent buckets to ensure strong query diversity:
-  1. Discovery (1 intent) — finding what's available in the area
-  2. Fit / Persona (1 intent) — suitability for a specific type of person
-  3. Constraints (1 intent) — a hard filter (price, hours, amenities) this business ACTUALLY satisfies
-  4. Quality / Trust (1 intent) — reviews, reputation, expertise — phrased generically for the area
-  5. Experience / Vibe (1 intent) — atmosphere, environment, crowding, energy
-  6. Price / Value (1 intent) — costs, deals, free trials — only if relevant to this business
-  7. Comparison (1 intent) — alternatives or comparisons in the area (e.g. "best options for X in [area]")
-  8. Logistics / Process (1 intent) — booking, cancellation, walk-ins, contracts
-  9. Problem-based (3 intents) — specific goals or use-cases this business can solve; pick the 3 most relevant from: ${problems}
+Generate exactly 12 customer intents for the business described. Each intent is a short phrase (4–8 words) describing what a potential customer wants — written from the customer's perspective, with no business name and no location.
 
-IMPORTANT:
-- NEVER mention the business name in any intent — intents are generic customer questions.
-- Constraints, Price/Value, and Problem-based intents must be grounded in the business's actual description and services — do not invent features it doesn't have.
+Cover all 9 intent buckets, one intent per bucket except bucket 9 which gets 3:
+  1. Discovery       — USE BROAD CATEGORY ONLY (e.g. "restaurant", "gym", "cafe") — the customer is browsing, not filtering by niche yet
+  2. Fit / Persona   — suited to a specific type of person or group; use broad category terms here too
+  3. Constraints     — a hard filter (hours, dietary, accessibility, price tier) this business ACTUALLY meets; niche can appear if relevant
+  4. Quality / Trust — reviews, reputation, awards, expertise; niche can appear if it's a genuine differentiator
+  5. Experience / Vibe — atmosphere, energy, setting, ambience; focus on the feeling, not the cuisine/specialism
+  6. Price / Value   — cost, deals, membership, free trial; use broad category terms
+  7. Comparison      — USE BROAD CATEGORY ONLY (e.g. "best restaurants in the area") — real customers compare all options, not just within a niche
+  8. Life Moment     — a specific life circumstance that drives the search (e.g. birthday, wedding, new job, moving home). Use these as inspiration, grounded in what this business can genuinely deliver: ${momentSuggestions}
+  9. Problem-based   — 3 intents for specific goals or needs this business solves. Use these as inspiration, grounded in its actual services: ${problemSuggestions}
 
-Each intent is a short phrase (3–7 words). Return exactly 12 strings.
+Rules:
+- NEVER use the business name
+- NEVER use second-person language (no "your", "you", "do you")
+- Constraints, Price/Value, and Problem-based intents must reflect what this business actually offers — do not invent
+- Buckets 1 and 7 MUST use broad category language — a customer searching "best restaurants in the area" is just as relevant as one searching for a specific cuisine type
+- Niche specifics (e.g. "Italian", "seafood", "CrossFit") can appear in buckets 3, 4, and 9 only when they genuinely describe what the customer is filtering for
 
-Return a JSON object: { "intents": ["...", ...] } — exactly 12 strings.`,
+Return JSON: { "intents": ["...", ...] } — exactly 12 strings.`,
       },
       {
         role: "user",
         content: `Business type: ${profile.type}
+Location: ${profile.location || "unknown"}
 Description: ${profile.description}
 Services: ${profile.services.join(", ")}`,
       },
     ],
-    max_tokens: 500,
+    max_tokens: 600,
   });
-  const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
+
+  const messages = completion.choices[0].message.content ?? "{}";
+  console.log("\n────── INTENT GENERATION PROMPT ──────");
+  console.log("SYSTEM:", completion.model);
+  console.log("USER INPUT:");
+  console.log(`  Business type: ${profile.type}`);
+  console.log(`  Location: ${profile.location || "unknown"}`);
+  console.log(`  Description: ${profile.description}`);
+  console.log(`  Services: ${profile.services.join(", ")}`);
+  console.log("RESPONSE:", messages);
+  console.log("──────────────────────────────────────\n");
+
+  const parsed = JSON.parse(messages);
   return Array.isArray(parsed.intents) ? parsed.intents : [];
 }
 
-// ─── 1.3 Step 2: Turn intents into location-aware discovery queries ───────────
+// ─── Step 2: Generate query seeds ────────────────────────────────────────────
+//
+// Turns each intent into a natural discovery query a customer would type into
+// an AI assistant. The LLM's only job is business-specific phrasing — it does
+// NOT decide the location. Instead it writes [LOCATION] wherever the location
+// naturally belongs in the sentence.
+//
+// injectLocations() then substitutes [LOCATION] with the real anchor string.
+// This gives us natural word order ("best seafood in [LOCATION] for a date")
+// without relying on the LLM to know or correctly use the location.
 
-async function generateQueries(
+async function generateQuerySeeds(
   profile: BusinessProfile,
   intents: string[]
 ): Promise<string[]> {
-  const { districts, city } = extractLocationParts(profile.location);
-  const primaryDistrict = districts[0] ?? null;
-  // Use the primary district as the example location in the prompt
-  const areaExample = primaryDistrict ?? profile.location.split(/[,/;|]/)[0].trim();
+  const location = resolveLocationAnchor(profile.location);
 
-  // For multi-location businesses: instruct the LLM to split queries evenly across venues
-  const half = Math.ceil(intents.length / 2);
-  const locationRule = districts.length > 1
-    ? `The business has ${districts.length} locations. Write the first ${half} queries (intents 1–${half}) anchored to "${districts[0]}" and the remaining ${intents.length - half} queries (intents ${half + 1}–${intents.length}) anchored to "${districts[1]}". Each set must cover a variety of the intent types given.`
-    : `The business has a single location. Anchor all queries to "${areaExample}".`;
+  const locationNote = location.primary
+    ? `The location anchor is "${location.primary}". You do not need to know the actual location — just write [LOCATION] wherever the location naturally fits in each query sentence.`
+    : `No specific location is known for this business. Do not include [LOCATION] or any geographic reference in the queries.`;
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -291,41 +413,67 @@ async function generateQueries(
     messages: [
       {
         role: "system",
-        content: `You generate natural language queries that a potential customer would type into an AI assistant when searching for a local business — someone who does not yet know this specific business exists.
+        content: `You write natural discovery queries — the kind of thing someone types into ChatGPT or Google when looking for a local business they don't yet know exists.
 
-You are given a list of customer intents spanning different search motivations. Write one query per intent, reflecting that intent naturally.
+For each customer intent given, write one query. Follow these rules:
 
-Rules:
-1. NEVER include the business name in any query. These are pure discovery queries.
-2. Geographic scope MUST be neighbourhood/district/borough level at most (e.g. "${areaExample}"). Never use just the city name or a broad region.
-3. NEVER use city-wide or region-wide phrasing (e.g. the full city name alone, compass directions + city, "Greater [City]").
-4. Do NOT use proximity phrasing like "near me" or "near [postcode]".
-5. ${locationRule}
-6. If you cannot infer a specific neighbourhood/district, prefer location-neutral phrasing over city-wide phrasing.
-7. For problem-based or persona intents, write goal-first queries (e.g. "best gym in ${areaExample} for beginner weight loss").
-8. Make queries sound natural — like real things people type into ChatGPT or Google.
+1. NEVER include the business name — these are pure discovery queries.
+2. LOCATION: Write [LOCATION] wherever the location naturally fits, always preceded by a natural preposition. ${locationNote}
+   Prefer broader prepositions — "near" and "around" feel more natural than "in" for most searches.
+   Use variety: mix "near", "around", "close to", and occasionally "in" depending on what sounds most natural.
+   Examples of good placement:
+     "best seafood restaurant near [LOCATION] for a special occasion"
+     "where to eat fresh lobster around [LOCATION]"
+     "top-rated spa close to [LOCATION] for a couples day"
+     "affordable personal trainer near [LOCATION] for weight loss"
+     "good gluten-free food around [LOCATION]"
+     "where to go for a birthday dinner near [LOCATION]"
+3. Make each query sound like something a real person would type — natural, conversational.
+4. Each query should be specific enough that an AI would name 2–3 businesses in response.
+5. Do NOT use "near me", postcodes, or vague terms like "in the area".
+6. Vary the category specificity across queries — roughly half should use the broad category (e.g. "restaurant", "gym", "cafe") because real customers often don't pre-filter by niche. The other half can reference the specific niche when it genuinely fits the intent (e.g. "seafood restaurant" for a quality/trust query). Do not force the niche into every query.
 
-Return a JSON object with a single key "queries" containing an array of exactly ${intents.length} strings, one per intent.`,
+Return JSON: { "seeds": ["...", ...] } — exactly ${intents.length} strings.`,
       },
       {
         role: "user",
         content: `Business type: ${profile.type}
-Location / areas: ${profile.location}
 Description: ${profile.description}
 Services: ${profile.services.join(", ")}
 
-Customer intents to turn into queries (one query each):
+Customer intents (write one query seed per intent):
 ${intents.map((intent, i) => `${i + 1}. ${intent}`).join("\n")}`,
       },
     ],
     max_tokens: 700,
   });
-  const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
-  const queries = Array.isArray(parsed.queries) ? parsed.queries : [];
-  return enforceDistrictLevelQueries(queries, districts, city);
+
+  const seedsRaw = completion.choices[0].message.content ?? "{}";
+
+  console.log("\n────── QUERY SEED GENERATION PROMPT ──────");
+  console.log(`LOCATION ANCHOR: ${location.primary ?? "none"}`);
+  console.log(`LOCATION NOTE: ${locationNote}`);
+  console.log("USER INPUT:");
+  console.log(`  Business type: ${profile.type}`);
+  console.log(`  Description: ${profile.description}`);
+  console.log(`  Services: ${profile.services.join(", ")}`);
+  console.log("  Intents sent:");
+  intents.forEach((intent, i) => console.log(`    ${i + 1}. ${intent}`));
+  console.log("RAW SEEDS FROM LLM:", seedsRaw);
+
+  const parsed = JSON.parse(seedsRaw);
+  const seeds = Array.isArray(parsed.seeds) ? parsed.seeds : [];
+  const injected = injectLocations(seeds, location);
+  const queries = filterRelevantQueries(injected);
+
+  console.log("FINAL QUERIES AFTER INJECTION + RELEVANCE GATE:");
+  queries.forEach((q, i) => console.log(`  ${i + 1}. ${q}`));
+  console.log("───────────────────────────────────────────\n");
+
+  return queries;
 }
 
-// ─── 1.4: Query each LLM with web search and return raw response + latency ────
+// ─── LLM querying ─────────────────────────────────────────────────────────────
 
 async function queryOpenAI(
   query: string
@@ -369,9 +517,12 @@ async function queryGemini(
   return { response: result.text ?? "", latencyMs: Date.now() - start, modelVersion: model };
 }
 
-// ─── 1.5 Bucket-level hit analysis + plain-English summary ───────────────────
+// ─── Bucket scoring + plain-English summary ───────────────────────────────────
+//
+// 9 buckets map directly to the 9 intent categories above.
+// Queries 0–7 map 1:1 to buckets 0–7.
+// Queries 8, 9, 10 all collapse into bucket 8 (Problem-based).
 
-// Maps query index → one of 9 intent buckets (indices 8+ all collapse to "Goal-based")
 const BUCKET_LABELS = [
   "Discovery",
   "Fit & Persona",
@@ -380,32 +531,29 @@ const BUCKET_LABELS = [
   "Experience & Vibe",
   "Price & Value",
   "Comparison",
-  "Logistics & Booking",
-  "Goal-based searches",   // covers query indices 8, 9, 10 (the 3 problem-based intents)
+  "Life Moment",
+  "Goal-based searches",
 ] as const;
 
 type BucketLabel = typeof BUCKET_LABELS[number];
 
 interface BucketScore {
   bucket: BucketLabel;
-  mentions: number;   // how many (query × LLM) pairs returned a mention
-  total: number;      // max possible = LLMs × queries in this bucket
+  mentions: number;
+  total: number;
 }
 
-function computeBucketScores(
-  queries: string[],
-  debug: DebugEntry[]
-): BucketScore[] {
+function computeBucketScores(queries: string[], debug: DebugEntry[]): BucketScore[] {
   const data: { mentions: number; total: number }[] = BUCKET_LABELS.map(() => ({
     mentions: 0,
     total: 0,
   }));
 
   queries.forEach((query, qi) => {
-    const bucketIdx = Math.min(qi, 8); // indices 8+ → bucket 8 (Goal-based)
+    const bucketIdx = Math.min(qi, 8);
     const forQuery = debug.filter((e) => e.query === query);
     data[bucketIdx].mentions += forQuery.filter((e) => e.mentioned).length;
-    data[bucketIdx].total += forQuery.length; // typically 3 (one per LLM)
+    data[bucketIdx].total += forQuery.length;
   });
 
   return BUCKET_LABELS.map((bucket, i) => ({
@@ -419,7 +567,6 @@ async function generateSummary(
   profile: BusinessProfile,
   bucketScores: BucketScore[]
 ): Promise<string> {
-  // Build a plain-text breakdown for the LLM prompt
   const lines = bucketScores
     .filter((b) => b.total > 0)
     .map((b) => {
@@ -440,22 +587,22 @@ Rules:
 - Write 100–150 words, no more
 - Open with one overall verdict sentence
 - Name 1–2 areas they perform well (only if score is strong/partial)
-- Name 1–2 specific gaps (weak or missing buckets) — describe what type of search they're invisible for, in plain terms the owner understands
+- Name 1–2 specific gaps (weak or missing buckets) — describe the search type in plain terms the owner understands
 - End with one practical nudge
 - Use second person: "you" / "your business"
 - Never say: "buckets", "LLM", "ChatGPT", "Claude", "Gemini", "AI models"
 - Instead say: "AI assistants", "when someone searches for...", "AI recommendations"
-- Translate technical bucket names into plain language:
-    Discovery → when people are browsing what's available nearby
-    Fit & Persona → when someone is looking for the right fit for their situation
-    Constraints → when people filter by opening hours, price, or specific amenities
-    Quality & Trust → when people ask about reviews or the best-rated options
-    Experience & Vibe → when people ask about atmosphere or what it's like
-    Price & Value → when people ask about cost, deals, or trials
-    Comparison → when people compare options in the area
-    Logistics & Booking → when people ask how to book or what the process is
-    Goal-based searches → when someone has a specific goal (e.g. losing weight, recovering from injury)
-- Be specific and useful — avoid generic filler like "there is room for improvement"`,
+- Translate bucket names into plain language:
+    Discovery         → when people browse what's available nearby
+    Fit & Persona     → when someone looks for the right fit for their situation
+    Constraints       → when people filter by hours, dietary needs, or specific requirements
+    Quality & Trust   → when people ask about reviews or the best-rated options
+    Experience & Vibe → when people ask about atmosphere or what it feels like
+    Price & Value     → when people ask about cost, deals, or trials
+    Comparison        → when people compare options in the area
+    Life Moment       → when someone is planning around a specific event or life change
+    Goal-based        → when someone has a specific goal (e.g. losing weight, recovering from injury)
+- Be specific and useful — avoid generic filler`,
       },
       {
         role: "user",
@@ -473,22 +620,18 @@ Write the summary now.`,
   return completion.choices[0].message.content?.trim() ?? "";
 }
 
-// ─── Detection: does the response mention this business? ─────────────────────
+// ─── Business mention detection ───────────────────────────────────────────────
 
-// Generic business-type words that shouldn't count as distinctive name tokens
 const NAME_STOP_WORDS = new Set([
   "the", "and", "of", "at", "in", "a", "an",
   "studio", "studios", "gym", "gyms", "fitness", "health", "club", "clubs",
   "pt", "personal", "training", "trainer", "trainers",
   "restaurant", "restaurants", "cafe", "bar", "pub", "kitchen", "bistro",
   "salon", "spa", "clinic", "centre", "center", "london", "ltd", "llc", "co",
-  // Beverage & food category words
   "coffee", "roaster", "roasters", "roastery", "bakery",
-  // Wellness & venue category words
   "sauna", "saunas", "wellness", "rooftop",
 ]);
 
-// Common suffixes to strip from business names to find a shorter alias
 const NAME_SUFFIXES = [
   " personal training studio", " personal training", " pt studio",
   " fitness studio", " fitness centre", " fitness center", " fitness club",
@@ -512,11 +655,13 @@ function buildStrictNameAliases(name: string): string[] {
   const base = name.toLowerCase().trim();
   const aliases: string[] = [base];
 
-  // Try stripping known suffixes to get a shorter brand name (e.g. "Revival PT Studio" → "Revival")
+  // Only add a suffix-stripped version if the result is still a multi-word name.
+  // e.g. "Modern Bread and Bagel Bakery" → "Modern Bread and Bagel" ✓
+  //      "Revival PT Studio" → "Revival" ✗ (single generic word, too loose)
   for (const suffix of NAME_SUFFIXES) {
     if (base.endsWith(suffix)) {
       const stripped = base.slice(0, -suffix.length).trim();
-      if (stripped.length > 3) {
+      if (stripped.includes(" ") && stripped.length > 6) {
         aliases.push(stripped);
       }
       break;
@@ -534,11 +679,9 @@ function mentionsBusiness(
 ): boolean {
   const text = response.toLowerCase();
 
-  // 1. Domain match (strip www. and TLD for partial match too)
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
     if (hostname.length > 3 && text.includes(hostname)) return true;
-    // Also check just the domain stem (e.g. "revivalptstudio" from "revivalptstudio.co.uk")
     const stem = hostname.split(".")[0];
     if (stem.length > 5 && text.includes(stem)) return true;
   } catch {
@@ -567,23 +710,19 @@ export async function POST(request: NextRequest) {
     force_refresh?: boolean;
   };
 
-  // Parse comma-separated user-supplied names into an array
   const extraNames = businessNames
     ? businessNames.split(",").map((n) => n.trim()).filter(Boolean)
     : [];
 
   if (!url || !profile) {
-    return NextResponse.json(
-      { error: "url and profile are required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "url and profile are required" }, { status: 400 });
   }
 
   if (extraNames.length > 0) {
     console.log(`[score] User-supplied names for detection: ${extraNames.join(", ")}`);
   }
 
-  // Check score cache (skip if force_refresh)
+  // Cache check
   const cacheKey = computeScoreCacheKey(url, queryCount);
   if (!force_refresh) {
     const cached = await getCachedScore(cacheKey);
@@ -594,7 +733,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 1.3 Step 1 — identify common customer intents for this business type
+  // Step 1 — generate intents
   let intents: string[];
   try {
     intents = await generateIntents(profile);
@@ -609,10 +748,10 @@ export async function POST(request: NextRequest) {
   console.log(`\n[score] Intents for "${profile.name}" (${profile.type}):`);
   intents.forEach((intent, i) => console.log(`  ${i + 1}. ${intent}`));
 
-  // 1.3 Step 2 — generate location-aware queries grounded in those intents
+  // Step 2 — generate query seeds and inject location
   let queries: string[];
   try {
-    queries = await generateQueries(profile, intents);
+    queries = await generateQuerySeeds(profile, intents);
   } catch (err) {
     console.error("[score] Query generation failed:", err);
     return NextResponse.json(
@@ -622,23 +761,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (queries.length === 0) {
-    return NextResponse.json(
-      { error: "No queries generated" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "No queries generated" }, { status: 500 });
   }
 
   console.log(`\n[score] Generated ${queries.length} queries for "${profile.name}":`);
   queries.forEach((q, i) => console.log(`  ${i + 1}. ${q}`));
 
-  // Slice to queryCount — generate all intents/queries but only send top N to LLMs
   const queriesToRun = queries.slice(0, Math.min(queryCount, queries.length));
-  console.log(`\n[score] Running ${queriesToRun.length}/${queries.length} queries against LLMs (queryCount=${queryCount})`);
+  console.log(`\n[score] Running ${queriesToRun.length}/${queries.length} queries against LLMs`);
 
-  // 1.4 — query all 3 LLMs for every query
-  // All three providers run fully in parallel — no batching needed.
-  // Perplexity's sonar model has web search natively (single-pass), so it
-  // matches OpenAI and Gemini's throughput without any rate-limit throttling.
+  // Step 3 — query all 3 LLMs in parallel
   const allDebugEntries: DebugEntry[] = [];
 
   await Promise.all(
@@ -680,17 +812,14 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  // 1.4 — compute per-LLM scores
+  // Step 4 — compute scores
   const providers: LLMProvider[] = ["openai", "perplexity", "gemini"];
   const perLLM: LLMScore[] = providers.map((llm) => {
     const entries = allDebugEntries.filter((e) => e.llm === llm);
     const mentions = entries.filter((e) => e.mentioned).length;
     return {
       llm,
-      score:
-        entries.length > 0
-          ? Math.round((mentions / entries.length) * 100)
-          : 0,
+      score: entries.length > 0 ? Math.round((mentions / entries.length) * 100) : 0,
       mentions,
       totalQueries: entries.length,
     };
@@ -700,7 +829,7 @@ export async function POST(request: NextRequest) {
     perLLM.reduce((sum, s) => sum + s.score, 0) / perLLM.length
   );
 
-  // 1.5 — bucket analysis + plain-English summary
+  // Step 5 — bucket analysis + summary
   const bucketScores = computeBucketScores(queries, allDebugEntries);
 
   let summary = "";
@@ -708,7 +837,6 @@ export async function POST(request: NextRequest) {
     summary = await generateSummary(profile, bucketScores);
   } catch (err) {
     console.error("[score] Summary generation failed:", err);
-    // Non-fatal — we still return the score without a summary
   }
 
   const scoreResult: ScoreResult = {
@@ -727,14 +855,12 @@ export async function POST(request: NextRequest) {
   );
   console.log("===================================\n");
 
-  // Persist score + feed research tables synchronously before responding
-  // (adds ~500ms for the batch mention-extraction call, which is acceptable)
+  // Persist to cache + research dataset
   try {
     const scoreCacheId = await setCachedScore(url, cacheKey, queryCount, scoreResult, profile);
     const queryIdMap = await insertQueryResults(profile, queriesToRun, allDebugEntries, scoreCacheId);
     await extractAndStoreMentions(allDebugEntries, queryIdMap);
   } catch (err) {
-    // Non-fatal — log but don't fail the response
     console.warn("[score] DB persistence failed:", err);
   }
 
